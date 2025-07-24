@@ -18,10 +18,10 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
-
   'envelope.fill': 'mail',        // icône mail
   'person.fill': 'person',        // icône utilisateur
-  'person.3.fill': 'group',       // icône groupe d’utilisateurs
+  'person.3.fill': 'group',
+  'video.fill': 'videocam'
 } as IconMapping;
 
 /**
