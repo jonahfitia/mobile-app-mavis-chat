@@ -24,7 +24,7 @@ export default function RootLayout() {
         }}
       >
         {/* Point vers le layout de ton TabNavigator */}
-        <Drawer.Screen name="(tabs)" />
+        <Drawer.Screen name="(login)" />
       </Drawer>
       <StatusBar style="auto" />
     </ThemeProvider>

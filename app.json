@@ -16,7 +16,18 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "networkSecurityConfig": {
+        "cleartextTrafficPermitted": true,
+        "domainConfigs": [
+          {
+            "domains": [
+              "192.168.1.48"
+            ],
+            "includeSubdomains": true
+          }
+        ]
+      }
     },
     "web": {
       "bundler": "metro",

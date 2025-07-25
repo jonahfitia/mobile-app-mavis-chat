@@ -32,7 +32,7 @@ export function ChatItem({ conversation_type, email, text, time }: ChatItemProps
     ? dayjs(time).format('HH:mm')
     : dayjs(time).locale('fr').format('D MMM');
 
-  const isChaine = conversation_type === 'chaine';
+  const isChaine = conversation_type === 'channel';
   const randomBgColor = React.useMemo(() => getRandomColor(), []);
 
   return (

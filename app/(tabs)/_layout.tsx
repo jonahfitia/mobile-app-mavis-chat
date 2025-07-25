@@ -1,7 +1,7 @@
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, Text } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
@@ -9,10 +9,25 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const navigation = useNavigation<DrawerNavigationProp<any>>(); // 👈 Drawer nav
+  const navigation = useNavigation<DrawerNavigationProp<any>>();
+
+  const [user_name, setUsername] = useState('');
+
+  useEffect(() => {
+    getUser();
+  }, []);
+
+  const getUser = async () => {
+    const userData = await AsyncStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setUsername(user.name);
+    }
+  };
 
   return (
     <Tabs
@@ -31,14 +46,14 @@ export default function TabLayout() {
           default: {},
         }),
         headerTitle: () => (
-          <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Discussion</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme ?? 'light'].tabIconDefault }}>Bonjour, {user_name}</Text>
         ),
         headerRight: () => (
           <Pressable
             onPress={() => navigation.openDrawer()}
             style={{ marginRight: 15 }}
           >
-            <IconSymbol name="person.fill" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            <IconSymbol name="person.fill" size={24} color={Colors[colorScheme ?? 'light'].tabIconDefault } />
           </Pressable>
         ),
         headerLeft: () => null,
