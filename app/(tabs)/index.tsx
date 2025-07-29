@@ -2,14 +2,14 @@
 import { ChatItem } from '@/components/ChatItem';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { CONFIG } from '@/config';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { CONFIG } from './../../config';
 
 // Types for Odoo data
 interface UserInfo {
@@ -61,22 +61,62 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const [chatData, setChatData] = useState<ChatData[]>([]);
   const [error, setError] = useState('');
+  const [partnerId, setPartnerId] = useState<number | null>(null);
+  const router = useRouter();
 
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        // Retrieve user info from AsyncStorage
-        const userData = await AsyncStorage.getItem('user');
-        if (!userData) {
-          setError('User not logged in');
-          return;
+  const fetchConversations = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (!userData) {
+        setError('User not logged in');
+        return;
+      }
+      const user: UserInfo = JSON.parse(userData);
+      const response = await axios.post<Message>(`${CONFIG.SERVER_URL}/web/session/get_session_info`,
+        {
+          "jsonrpc": "2.0",
+          "method": "call",
+          "params": {},
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: `session_id=${user.session_id}`,
+          },
+        });
+
+      const session = response.data;
+      const partnerId = session?.result?.partner_id;
+      setPartnerId(partnerId);
+
+      const initResponse = await axios.post<InitMessagingResponse>(
+        `${CONFIG.SERVER_URL}/mail/init_messaging`,
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: `session_id=${user.session_id}`,
+          },
         }
-        const user: UserInfo = JSON.parse(userData);
+      );
 
-        // Fetch channels from /mail/init_messaging
-        const initResponse = await axios.post<InitMessagingResponse>(
-          `${CONFIG.SERVER_URL}/mail/init_messaging`,
-          {},
+      const allChannels: Channel[] = [
+        ...initResponse.data.result.channel_slots.channel_channel,
+        ...initResponse.data.result.channel_slots.channel_direct_message,
+        ...initResponse.data.result.channel_slots.channel_private_group,
+      ];
+
+      const chatDataPromises = allChannels.map(async (channel) => {
+        const historyResponse = await axios.post<Message>(
+          `${CONFIG.SERVER_URL}/mail/chat_history`,
+          {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+              "uuid": channel.uuid,
+              "limit": 2
+            },
+          },
           {
             headers: {
               'Content-Type': 'application/json',
@@ -85,70 +125,52 @@ export default function HomeScreen() {
           }
         );
 
-        const allChannels: Channel[] = [
-          ...initResponse.data.result.channel_slots.channel_channel,
-          ...initResponse.data.result.channel_slots.channel_direct_message,
-          ...initResponse.data.result.channel_slots.channel_private_group,
-        ];
+        const lastMessage = historyResponse.data.result[0] || {};
+        // console.log(channel.uuid, '---- _____________________________________  -----', lastMessage)
+        const email =
+          channel.members?.find((m) => m.id !== initResponse.data.result.current_partner.id)?.email ||
+          channel.name;
 
-        console.log('ALL CHANNELS ', allChannels);
-        const chatDataPromises = allChannels.map(async (channel) => {
-          console.log(channel.uuid + ' ' + `${CONFIG.SERVER_URL}/mail/chat_history`);
-          const historyResponse = await axios.post<Message>(
-            `${CONFIG.SERVER_URL}/mail/chat_history`,
-            {
-              "jsonrpc": "2.0",
-              "method": "call",
-              "params": {
-                "uuid": channel.uuid,
-                "limit": 2
-              },
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                Cookie: `session_id=${user.session_id}`,
-              },
-            }
-          );
+        const isMine = lastMessage?.author_id?.[0] === partnerId;
+        const cleanText = lastMessage.body ? lastMessage.body.replace(/<[^>]+>/g, '') : 'No messages';
+        const displayText = isMine ? `⤻ Vous : ${cleanText}` : cleanText;
 
-          const lastMessage = historyResponse.data.result[0] || {};
-          
-          console.log(channel.uuid , '---- _____________________________________  -----', historyResponse)
-          console.log(' ')
-          const email =
-            channel.members?.find((m) => m.id !== initResponse.data.result.current_partner.id)?.email ||
-            `channel_${channel.id}@example.com`;
+        return {
+          conversation_type: channel.channel_type,
+          email,
+          text: displayText,
+          time: lastMessage.date || '1970-01-01T00:00:00',
+          uuid: channel.uuid,
+        };
+      });
 
-          return {
-            conversation_type: channel.channel_type,
-            email,
-            text: lastMessage.body ? lastMessage.body.replace(/<[^>]+>/g, '') : 'No messages',
-            time: lastMessage.date || '1970-01-01T00:00:00',
-            uuid: channel.uuid,
-          };
-        });
-        ;
-        const newChatData = await Promise.all(chatDataPromises);
+      const newChatData = await Promise.all(chatDataPromises);
 
-        // Sort by date descending
-        const sortedChatData = newChatData.sort(
-          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-        );
+      // Sort by date descending
+      const sortedChatData = newChatData.sort(
+        (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+      );
 
-        setChatData(sortedChatData);
-      } catch (err) {
-        setError('Failed to load conversations');
-        console.error(err);
-      }
-    };
+      setChatData(sortedChatData);
+    } catch (err) {
+      setError('Failed to load conversations');
+      console.error(err);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchConversations();
+    }, [fetchConversations])
+  );
+
+  useEffect(() => {
 
     fetchConversations();
   }, []);
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Fixed Header */}
       <ThemedView style={styles.fixedHeader}>
         <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
           <IconSymbol name="video.fill" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -160,7 +182,6 @@ export default function HomeScreen() {
         </Pressable>
       </ThemedView>
 
-      {/* Scrollable Content */}
       <ScrollView contentContainerStyle={{ padding: 8, paddingTop: 80 }}>
         <ThemedView style={{ marginTop: 10 }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -168,15 +189,29 @@ export default function HomeScreen() {
             <Text style={{ textAlign: 'center', color: '#666' }}>No conversations found</Text>
           ) : (
             chatData.map((item) => (
-              <ChatItem
+              <Pressable
                 key={item.uuid}
-                conversation_type={item.conversation_type}
-                email={item.email}
-                text={item.text}
-                time={item.time}
-              />
-            ))
-          )}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(chat)/[uuid]",
+                    params: {
+                      uuid: item.uuid,
+                      conversation_type: item.conversation_type,
+                      email: item.email,
+                    },
+                  })
+                }
+              >
+                <ChatItem
+                  key={item.uuid}
+                  conversation_type={item.conversation_type}
+                  email={item.email}
+                  text={item.text}
+                  time={item.time}
+                  unreadCount={0}
+                />
+              </Pressable>
+            )))}
         </ThemedView>
       </ScrollView>
     </View>
