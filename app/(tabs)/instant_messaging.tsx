@@ -1,15 +1,12 @@
-import { ScrollView } from 'react-native';
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { ConversationList } from '@/components/ConversationList';
+import { useHomeChatData } from '../../hooks/useHomeChartData';
 
 
 export default function MessagingScreen() {
+  const { chatData, error } = useHomeChatData(); // ou passe chatData/error en props
+
   return (
-      <ScrollView contentContainerStyle={{ padding: 8 }}>
-        <ThemedView>
-          <ThemedText type="title">Chaine!</ThemedText>
-        </ThemedView>
-      </ScrollView>
+    <ConversationList chatData={chatData} filterType="chat" error={error} />
   );
 }

@@ -21,7 +21,11 @@ const MAPPING = {
   'envelope.fill': 'mail',        // icône mail
   'person.fill': 'person',        // icône utilisateur
   'person.3.fill': 'group',
-  'video.fill': 'videocam'
+  'video.fill': 'videocam',
+  'bubble.left.and.bubble.right.fill': 'chat', // icône de conversation
+  'ellipsis': 'more-vert',
+  'gear': 'settings',
+  'bell.fill': 'notifications', 
 } as IconMapping;
 
 /**

@@ -70,11 +70,9 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.innerContainer}>
-        <Title style={styles.title}>MAVIS</Title>
-        <Text style={styles.subtitle}>Connectez-vous pour continuer</Text>
-
+        <Title style={styles.title}>MAVIS CHAT</Title>
         <TextInput
-          label="Email"
+          label="Mail Address"
           value={email}
           onChangeText={(text) => {
             setEmail(text);
@@ -90,7 +88,7 @@ const LoginScreen: React.FC = () => {
         />
 
         <TextInput
-          label="Mot de passe"
+          label="Password"
           value={password}
           onChangeText={(text) => {
             setPassword(text);

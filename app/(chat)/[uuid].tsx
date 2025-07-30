@@ -73,13 +73,9 @@ export default function ChatScreen() {
     const theme = useTheme();
     const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
-
-    function getFormattedTime(time: string) {
-        const isToday = dayjs(time).isSame(dayjs(), 'day');
-        return isToday
-            ? dayjs(time).format('HH:mm')
-            : dayjs(time).locale('fr').format('D MMM HH:mm');
-    }
+    const [showScrollToEnd, setShowScrollToEnd] = useState(false);
+    const [hasScrolledInitially, setHasScrolledInitially] = useState(false);
+    const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone); // Alternative
 
     const getPartnerId = async (): Promise<number | null> => {
         try {
@@ -158,6 +154,15 @@ export default function ChatScreen() {
         }
     };
 
+    useEffect(() => {
+        if (messages.length > 0 && !hasScrolledInitially) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: false });
+                setHasScrolledInitially(true);
+            }, 100);
+        }
+    }, [messages, hasScrolledInitially]);
+
     useFocusEffect(
         React.useCallback(() => {
             fetchMessages();
@@ -166,6 +171,7 @@ export default function ChatScreen() {
 
     useEffect(() => {
         setIsLoading(true);
+        setHasScrolledInitially(false);
         fetchMessages();
         setIsLoading(false);
     }, [uuid]);
@@ -180,7 +186,9 @@ export default function ChatScreen() {
 
             try {
                 const userData = await AsyncStorage.getItem('user');
-                if (!userData) return;
+                if (!userData) {
+                    return;
+                }
                 const user: UserInfo = JSON.parse(userData);
 
                 while (isPolling) {
@@ -217,7 +225,7 @@ export default function ChatScreen() {
                                     id: message.id,
                                     text: message.body ? message.body.replace(/<[^>]+>/g, '') : 'No message',
                                     time: message.date,
-                                    isMine: message.author_id[0] === partnerId
+                                    isMine: message.author_id[0] === partnerId,
                                 },
                             ];
                         });
@@ -237,10 +245,16 @@ export default function ChatScreen() {
         };
     }, [partnerId, channel_id]);
 
-    // Scroll to the bottom when messages change
     useEffect(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-    }, [messages]);
+        const updateTimezone = () => {
+            const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (newTimezone !== userTimezone) {
+                setUserTimezone(newTimezone);
+                console.log('Mise à jour du fuseau horaire:', newTimezone);
+            }
+        };
+        updateTimezone();
+    }, []);
 
     const sendMessage = async () => {
         if (!newMessage.trim()) return;
@@ -253,7 +267,10 @@ export default function ChatScreen() {
             }
 
             const user: UserInfo = JSON.parse(userData);
-            const now = new Date().toISOString();
+            if (!uuid) {
+                setError('UUID is missing or invalid');
+                return;
+            }
 
             const response = await axios.post(
                 `${CONFIG.SERVER_URL}/mail/chat_post`,
@@ -273,8 +290,9 @@ export default function ChatScreen() {
                 }
             );
 
-            console.log('Message envoyé:', response.data);
+            console.log('Message envoyé - Réponse API:', response.data);
             setNewMessage('');
+            flatListRef.current?.scrollToEnd({ animated: true });
             Keyboard.dismiss();
         } catch (err) {
             setError('Failed to send message');
@@ -282,52 +300,56 @@ export default function ChatScreen() {
         }
     };
 
+    // Dans le composant principal, ajustez le useEffect
+    useEffect(() => {
+        const updateTimezoneAndTime = () => {
+            const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (newTimezone !== userTimezone) {
+                setUserTimezone(newTimezone);
+                console.log('Mise à jour du fuseau horaire:', newTimezone);
+            }
+            const systemTime = new Date();
+            const now = dayjs.tz(systemTime, userTimezone);
+            console.log('Heure système vérifiée:', now.format('YYYY-MM-DD HH:mm:ss'));
+        };
+        updateTimezoneAndTime();
+        const interval = setInterval(updateTimezoneAndTime, 60000); // Mise à jour toutes les minutes
+        return () => clearInterval(interval); // Nettoyage
+    }, [userTimezone]);
+
     function renderItemWithDateSeparator({ item, index }: { item: ChatMessage; index: number }) {
         const previous = messages[index - 1];
-
-        const currentDate = dayjs(item.time).tz('Africa/Nairobi');
-        const previousDate = previous ? dayjs(previous.time).tz('Africa/Nairobi') : null;
+        // Traiter item.time comme une heure locale GMT+3, puis ajuster avec le fuseau utilisateur
+        const currentDate = dayjs.utc(item.time).tz(userTimezone);
+        const previousDate = previous ? dayjs.utc(previous.time).tz(userTimezone) : null;
 
         const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
-        const today = dayjs().tz('Africa/Nairobi');
+        // Utiliser dayjs() pour l'heure locale, puis appliquer le fuseau
+        const systemTime = new Date().getTime();
+        const today = dayjs.tz(systemTime, userTimezone);
+        console.log('USER TIMEZONE:', userTimezone);
+        console.log('Heure locale (fuseau utilisateur):', today.format('YYYY-MM-DD HH:mm:ss'));
+        console.log('Item time brut:', item.time);
+        console.log('Heure affichée (fuseau utilisateur):', currentDate.format('HH:mm'));
+        console.log('Heure système native 1):', new Date().toLocaleString());
+        console.log('Heure système native 2):', new Date().toISOString());
+        console.log('-------------------------');
 
         const isToday = currentDate.isSame(today, 'day');
-        const showTime =
-            !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
+        const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
         return (
             <>
                 {showDate && (
                     <View style={styles.dateSeparator}>
                         <View style={styles.line} />
                         <Text style={styles.dateSeparatorText}>
-                            {isToday
-                                ? "Aujourd'hui"
-                                : currentDate.format('dddd DD MMMM YYYY')}
+                            {isToday ? "Aujourd'hui" : currentDate.format('dddd DD MMMM YYYY')}
                         </Text>
                         <View style={styles.line} />
                     </View>
                 )}
-
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-                    {/* {!item.isMine && (
-                        <View style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: 0,
-                            backgroundColor: '#ddd',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginRight: 8,
-                        }}>
-                            <Text style={{ fontWeight: 'bold', color: '#333' }}>
-                                {email?.charAt(0).toUpperCase()}
-                            </Text>
-                        </View>
-                    )} */}
-                    <View style={[
-                        !item.isMine ? { marginLeft: 5 } : {},
-                        { flex: 1 }
-                    ]}>
+                    <View style={[!item.isMine ? { marginLeft: 5 } : {}, { flex: 1 }]}>
                         {showTime && (
                             <Text
                                 style={[
@@ -352,12 +374,11 @@ export default function ChatScreen() {
         );
     }
 
-
     return (
         <KeyboardAvoidingView
             style={{ flex: 1, backgroundColor: '#fff' }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
         >
             <View style={styles.header}>
                 <View style={styles.profileIcon}>
@@ -371,16 +392,28 @@ export default function ChatScreen() {
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {isLoading ? <Text style={styles.loading}>Loading...</Text> : null}
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderItemWithDateSeparator}
-                contentContainerStyle={styles.messageList}
-                keyboardShouldPersistTaps="handled"
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            />
+            {isLoading ? (
+                <Text style={styles.loading}>Loading...</Text>
+            ) : (
+                <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={renderItemWithDateSeparator}
+                    contentContainerStyle={styles.messageList}
+                    keyboardShouldPersistTaps="handled"
+                    onScroll={(event) => {
+                        const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+                        const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
+                        const isAtBottom =
+                            isContentSmallerThanScreen ||
+                            layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+
+                        setShowScrollToEnd(!isAtBottom);
+                    }}
+                    scrollEventThrottle={100}
+                />
+            )}
             <View style={styles.inputContainer}>
                 <TouchableOpacity onPress={() => console.log('Add media')}>
                     <Ionicons name="camera-outline" size={24} color="#000" style={styles.inputIcon} />
@@ -402,6 +435,14 @@ export default function ChatScreen() {
                     />
                 </TouchableOpacity>
             </View>
+            {showScrollToEnd && (
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                >
+                    <Ionicons name="arrow-down" size={28} color="#fff" />
+                </TouchableOpacity>
+            )}
         </KeyboardAvoidingView>
     );
 }
@@ -530,7 +571,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginVertical: 10,
     },
-
     dateSeparatorText: {
         paddingHorizontal: 12,
         paddingVertical: 4,
@@ -543,12 +583,23 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#a17676ff',
     },
-
     messageTimeLeft: {
         alignSelf: 'flex-start',
     },
-
     messageTimeRight: {
         alignSelf: 'flex-end',
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 150,
+        right: 20,
+        backgroundColor: '#0d7ecac6',
+        borderRadius: 25,
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
+        zIndex: 100,
     },
 });

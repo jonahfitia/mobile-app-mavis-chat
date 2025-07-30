@@ -14,9 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const navigation = useNavigation<DrawerNavigationProp<any>>();
-
   const [user_name, setUsername] = useState('');
-
   useEffect(() => {
     getUser();
   }, []);
@@ -46,7 +44,7 @@ export default function TabLayout() {
           default: {},
         }),
         headerTitle: () => (
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme ?? 'light'].tabIconDefault }}>Bonjour, {user_name}</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme ?? 'light'].tabIconDefault }}>Hello {user_name}</Text>
         ),
         headerRight: () => (
           <Pressable
@@ -62,21 +60,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tous',
+          title: 'All',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="envelope.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="instant_messaging"
         options={{
-          title: 'Messagerie instantanée',
+          title: 'Instant Messaging',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="chaine"
+        name="channel"
         options={{
-          title: 'Chaine',
+          title: 'Channels',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.3.fill" color={color} />,
         }}
       />

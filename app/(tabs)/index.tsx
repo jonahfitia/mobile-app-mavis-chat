@@ -1,5 +1,5 @@
 // app/(tabs)/home.tsx
-import { ChatItem } from '@/components/ChatItem';
+import { ConversationList } from '@/components/ConversationList';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { CONFIG } from '@/config';
@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 // Types for Odoo data
 interface UserInfo {
@@ -20,6 +20,7 @@ interface UserInfo {
 }
 
 interface Channel {
+  unreadCount: number | null;
   id: number;
   name: string;
   uuid: string;
@@ -50,11 +51,13 @@ interface InitMessagingResponse {
 }
 
 interface ChatData {
+  name: string | undefined;
   conversation_type: 'channel' | 'chat' | 'group';
   email: string;
   text: string;
   time: string;
   uuid: string;
+  unreadCount: number;
 }
 
 export default function HomeScreen() {
@@ -126,21 +129,35 @@ export default function HomeScreen() {
         );
 
         const lastMessage = historyResponse.data.result[0] || {};
-        // console.log(channel.uuid, '---- _____________________________________  -----', lastMessage)
         const email =
           channel.members?.find((m) => m.id !== initResponse.data.result.current_partner.id)?.email ||
           channel.name;
 
+        // console.log(`Channel: ${channel.name},  LAST AUTHOR: ${lastMessage.author_id?.[1]}, PARTNER ID: ${partnerId}`);
         const isMine = lastMessage?.author_id?.[0] === partnerId;
         const cleanText = lastMessage.body ? lastMessage.body.replace(/<[^>]+>/g, '') : 'No messages';
-        const displayText = isMine ? `⤻ Vous : ${cleanText}` : cleanText;
-
+        const last_author = lastMessage.author_id?.[1] || 'Unknown';
+        let displayText = cleanText;
+        if (channel.channel_type !== 'chat') {
+          displayText = isMine ? `⤻ Vous : ${cleanText}` : `⤻${last_author} : ${cleanText}`;
+        } else if (isMine) {
+          displayText = `⤻ Vous : ${cleanText}`;
+        }
+        // Compte les messages non lus pour l'utilisateur courant
+        // const unreadCount = messages.filter(
+        //   (msg: any) =>
+        //     Array.isArray(msg.needaction_partner_ids) &&
+        //     msg.needaction_partner_ids.includes(partnerId)
+        // ).length;
+        // console.log(`Channel: ${channel.name}, Unread Count: ${unreadCount}`);
         return {
           conversation_type: channel.channel_type,
           email,
           text: displayText,
           time: lastMessage.date || '1970-01-01T00:00:00',
           uuid: channel.uuid,
+          name: channel.name,
+          unreadCount: 16
         };
       });
 
@@ -165,7 +182,6 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
-
     fetchConversations();
   }, []);
 
@@ -174,46 +190,14 @@ export default function HomeScreen() {
       <ThemedView style={styles.fixedHeader}>
         <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
           <IconSymbol name="video.fill" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.buttonText}>Démarrer une réunion</Text>
+          <Text style={styles.buttonText}>Start a meeting</Text>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-          <IconSymbol name="video.fill" size={20} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Démarrer une conversation</Text>
+          <IconSymbol name="bubble.left.and.bubble.right.fill" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.buttonText}>New conversation</Text>
         </Pressable>
       </ThemedView>
-
-      <ScrollView contentContainerStyle={{ padding: 8, paddingTop: 80 }}>
-        <ThemedView style={{ marginTop: 10 }}>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {chatData.length === 0 && !error ? (
-            <Text style={{ textAlign: 'center', color: '#666' }}>No conversations found</Text>
-          ) : (
-            chatData.map((item) => (
-              <Pressable
-                key={item.uuid}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(chat)/[uuid]",
-                    params: {
-                      uuid: item.uuid,
-                      conversation_type: item.conversation_type,
-                      email: item.email,
-                    },
-                  })
-                }
-              >
-                <ChatItem
-                  key={item.uuid}
-                  conversation_type={item.conversation_type}
-                  email={item.email}
-                  text={item.text}
-                  time={item.time}
-                  unreadCount={0}
-                />
-              </Pressable>
-            )))}
-        </ThemedView>
-      </ScrollView>
+      <ConversationList chatData={chatData} error={error} filterType={null} />
     </View>
   );
 }
@@ -222,12 +206,7 @@ const styles = StyleSheet.create({
   fixedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 8,
-    paddingBottom: 4,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    padding: 5,
     zIndex: 10,
   },
   button: {
