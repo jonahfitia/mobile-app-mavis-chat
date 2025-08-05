@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "693606277980",
+    "project_id": "mavis-chat",
+    "storage_bucket": "mavis-chat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693606277980:android:a9e1194321c9bfd0395799",
+        "android_client_info": {
+          "package_name": "mavis.chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgipeBUtz-0awhcu9GnJRm1qVNXPXyNdk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

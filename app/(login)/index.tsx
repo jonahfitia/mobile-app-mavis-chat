@@ -16,8 +16,8 @@ const LoginScreen: React.FC = () => {
   const router = useRouter();
 
   const handleLogin = async () => {
-    setLoading(true); // ✅ Commence le chargement
-    setError(null);   // Réinitialise l'erreur
+    setLoading(true);
+    setError(null);
 
     try {
       const response = await fetch(`${CONFIG.SERVER_URL}/web/session/authenticate`, {
@@ -27,6 +27,7 @@ const LoginScreen: React.FC = () => {
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
+          method: 'call', // ✅ OBLIGATOIRE
           params: {
             db: CONFIG.DATABASE_NAME,
             login: email,
@@ -36,26 +37,29 @@ const LoginScreen: React.FC = () => {
       });
 
       const data = await response.json();
+      const rawSetCookie = response.headers.map['set-cookie'];
 
+      const match = rawSetCookie.match(/session_id=([^;]+)/);
+      const sessionId = match ? match[1] : '';
+      
       if (data.error) {
         Alert.alert('Erreur', data.error.message || 'Échec de l\'authentification');
       } else if (data.result && data.result.uid) {
-
         if (data.result && data.result.uid) {
           const userInfo = {
             uid: data.result.uid,
             name: data.result.name,
-            session_id: data.result.session_id,
+            session_id: sessionId,
             context: data.result.user_context,
           };
 
           await AsyncStorage.setItem('user', JSON.stringify(userInfo));
 
-        router.replace('/(tabs)' as const);
         }
       } else {
         Alert.alert('Erreur', 'Identifiants incorrects');
       }
+      router.replace('/(tabs)' as const);
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
       Alert.alert('Erreur', 'Une erreur s\'est produite. Vérifiez votre connexion réseau.');
@@ -128,7 +132,7 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#327bc3ff',
     justifyContent: 'center',
     padding: 20,
   },

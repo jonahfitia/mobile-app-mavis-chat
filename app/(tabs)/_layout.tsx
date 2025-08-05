@@ -15,6 +15,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const navigation = useNavigation<DrawerNavigationProp<any>>();
   const [user_name, setUsername] = useState('');
+  const totalUnread = 2;
   useEffect(() => {
     getUser();
   }, []);
@@ -51,7 +52,7 @@ export default function TabLayout() {
             onPress={() => navigation.openDrawer()}
             style={{ marginRight: 15 }}
           >
-            <IconSymbol name="person.fill" size={24} color={Colors[colorScheme ?? 'light'].tabIconDefault } />
+            <IconSymbol name="person.fill" size={24} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
           </Pressable>
         ),
         headerLeft: () => null,
@@ -62,6 +63,14 @@ export default function TabLayout() {
         options={{
           title: 'All',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="envelope.fill" color={color} />,
+          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#FF2D55',
+            fontSize: 10,
+            minWidth: 20,
+            height: 20,
+            borderRadius: 15,
+          },
         }}
       />
       <Tabs.Screen

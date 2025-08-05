@@ -9,14 +9,22 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mavis.chat",
+      "googleServicesFile": "./assets/GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/splash-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "googleServicesFile": "./assets/google-services.json",
       "networkSecurityConfig": {
         "cleartextTrafficPermitted": true,
         "domainConfigs": [
@@ -44,7 +52,16 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "appId": "VOTRE_IOS_APP_ID"
+          }
+        }
+      ],
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true

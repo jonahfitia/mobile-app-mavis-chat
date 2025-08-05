@@ -18,7 +18,9 @@ type ChatItemProps = {
   conversation_type: string;
   email: string;
   text: string;
+  uuid: string
   time: string;
+  channelId: number;
   unreadCount: number;
   name?: string;
 };
@@ -86,6 +88,11 @@ export function ChatItem({ conversation_type, email, text, time, unreadCount, na
         {unreadCount > 0 && (
           <View style={[styles.badge, { position: 'relative', top: 0, right: 0, marginBottom: 2 }]}>
             <Text style={styles.badgeText}>{unreadCount > 15 ? '15+' : unreadCount}</Text>
+          </View>
+        )}
+        {unreadCount === 0 && (
+          <View>
+            <Text>{''}</Text>
           </View>
         )}
         <View style={[{ position: 'relative', top: 0, right: 0, marginBottom: 2 }]}>

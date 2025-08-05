@@ -9,10 +9,12 @@ import utc from 'dayjs/plugin/utc';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     FlatList,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
+    SafeAreaView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -25,7 +27,6 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale('fr');
 
-// Types pour les données Odoo
 interface UserInfo {
     uid: number;
     name: string;
@@ -68,7 +69,6 @@ export default function ChatScreen() {
     const [newMessage, setNewMessage] = useState('');
     const [error, setError] = useState('');
     const [partnerId, setPartnerId] = useState<number | null>(null);
-    const [lastPollTime, setLastPollTime] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(false);
     const theme = useTheme();
     const router = useRouter();
@@ -78,6 +78,7 @@ export default function ChatScreen() {
     const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone); // Alternative
 
     const getPartnerId = async (): Promise<number | null> => {
+
         try {
             const userData = await AsyncStorage.getItem('user');
             if (!userData) {
@@ -94,9 +95,9 @@ export default function ChatScreen() {
                     params: {},
                 },
                 {
+                    withCredentials: true,
                     headers: {
                         'Content-Type': 'application/json',
-                        Cookie: `session_id=${user.session_id}`,
                     },
                 }
             );
@@ -112,7 +113,10 @@ export default function ChatScreen() {
     const fetchMessages = async () => {
         try {
             const partner = await getPartnerId();
-            if (!partner) return;
+            if (!partner) {
+                setError('Impossible de récupérer le partenaire.');
+                return;
+            }
             setPartnerId(partner);
 
             const userData = await AsyncStorage.getItem('user');
@@ -152,16 +156,9 @@ export default function ChatScreen() {
             setError('Failed to load messages');
             console.error('Erreur lors du chargement des messages:', err);
         }
-    };
-
-    useEffect(() => {
-        if (messages.length > 0 && !hasScrolledInitially) {
-            setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: false });
-                setHasScrolledInitially(true);
-            }, 100);
+        finally {
         }
-    }, [messages, hasScrolledInitially]);
+    };
 
     useFocusEffect(
         React.useCallback(() => {
@@ -170,91 +167,53 @@ export default function ChatScreen() {
     );
 
     useEffect(() => {
-        setIsLoading(true);
-        setHasScrolledInitially(false);
-        fetchMessages();
-        setIsLoading(false);
+        let isMounted = true;
+
+        const load = async () => {
+            setHasScrolledInitially(true);
+            setIsLoading(true);
+            await fetchMessages();
+            if (isMounted) {
+                setIsLoading(false);
+                setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                }, 100); // Délai pour s'assurer que le rendu est terminé
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
     }, [uuid]);
 
-    useEffect(() => {
-        let isPolling = true;
+    const updateTimezone = () => {
+        const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (newTimezone !== userTimezone) {
+            setUserTimezone(newTimezone);
+            console.log('Mise à jour du fuseau horaire:', newTimezone);
+        }
+    };
 
-        const pollForMessages = async () => {
-            if (!partnerId || !channel_id || !CONFIG?.SERVER_URL) {
-                return;
-            }
-
-            try {
-                const userData = await AsyncStorage.getItem('user');
-                if (!userData) {
-                    return;
-                }
-                const user: UserInfo = JSON.parse(userData);
-
-                while (isPolling) {
-                    const pollResponse = await axios.post<PollResponse>(
-                        `${CONFIG.SERVER_URL}/longpolling/poll`,
-                        {
-                            jsonrpc: '2.0',
-                            method: 'call',
-                            params: {
-                                channels: [['mail.channel', parseInt(channel_id)]],
-                                last: lastPollTime,
-                                options: { bus_inactivity: 60000 },
-                            },
-                        },
-                        {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Cookie: `session_id=${user.session_id}`,
-                            },
-                        }
-                    );
-
-                    const notifications = pollResponse.data.result || [];
-                    setLastPollTime(Date.now());
-
-                    for (const notification of notifications) {
-                        const { message } = notification;
-                        setMessages((prev) => {
-                            const exists = prev.some((msg) => msg.id === message.id);
-                            if (exists) return prev;
-                            return [
-                                ...prev,
-                                {
-                                    id: message.id,
-                                    text: message.body ? message.body.replace(/<[^>]+>/g, '') : 'No message',
-                                    time: message.date,
-                                    isMine: message.author_id[0] === partnerId,
-                                },
-                            ];
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error('Erreur lors du polling:', err);
-                setError('Failed to poll for new messages');
-                await new Promise((resolve) => setTimeout(resolve, 5000));
-                if (isPolling) pollForMessages();
-            }
-        };
-
-        pollForMessages();
-        return () => {
-            isPolling = false;
-        };
-    }, [partnerId, channel_id]);
+    const updateTimezoneAndTime = () => {
+        const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (newTimezone !== userTimezone) {
+            setUserTimezone(newTimezone);
+        }
+        const systemTime = new Date();
+        const now = dayjs.tz(systemTime, userTimezone);
+    };
 
     useEffect(() => {
-        const updateTimezone = () => {
-            const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            if (newTimezone !== userTimezone) {
-                setUserTimezone(newTimezone);
-                console.log('Mise à jour du fuseau horaire:', newTimezone);
-            }
-        };
         updateTimezone();
     }, []);
+
+    useEffect(() => {
+        updateTimezoneAndTime();
+        const interval = setInterval(updateTimezoneAndTime, 60000);
+        return () => clearInterval(interval);
+    }, [userTimezone]);
 
     const sendMessage = async () => {
         if (!newMessage.trim()) return;
@@ -283,9 +242,9 @@ export default function ChatScreen() {
                     },
                 },
                 {
+                    withCredentials: true,
                     headers: {
                         'Content-Type': 'application/json',
-                        Cookie: `session_id=${user.session_id}`,
                     },
                 }
             );
@@ -300,40 +259,21 @@ export default function ChatScreen() {
         }
     };
 
-    // Dans le composant principal, ajustez le useEffect
-    useEffect(() => {
-        const updateTimezoneAndTime = () => {
-            const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            if (newTimezone !== userTimezone) {
-                setUserTimezone(newTimezone);
-                console.log('Mise à jour du fuseau horaire:', newTimezone);
-            }
-            const systemTime = new Date();
-            const now = dayjs.tz(systemTime, userTimezone);
-            console.log('Heure système vérifiée:', now.format('YYYY-MM-DD HH:mm:ss'));
-        };
-        updateTimezoneAndTime();
-        const interval = setInterval(updateTimezoneAndTime, 60000); // Mise à jour toutes les minutes
-        return () => clearInterval(interval); // Nettoyage
-    }, [userTimezone]);
-
     function renderItemWithDateSeparator({ item, index }: { item: ChatMessage; index: number }) {
         const previous = messages[index - 1];
         // Traiter item.time comme une heure locale GMT+3, puis ajuster avec le fuseau utilisateur
         const currentDate = dayjs.utc(item.time).tz(userTimezone);
         const previousDate = previous ? dayjs.utc(previous.time).tz(userTimezone) : null;
-
         const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
         // Utiliser dayjs() pour l'heure locale, puis appliquer le fuseau
         const systemTime = new Date().getTime();
         const today = dayjs.tz(systemTime, userTimezone);
-        console.log('USER TIMEZONE:', userTimezone);
-        console.log('Heure locale (fuseau utilisateur):', today.format('YYYY-MM-DD HH:mm:ss'));
-        console.log('Item time brut:', item.time);
-        console.log('Heure affichée (fuseau utilisateur):', currentDate.format('HH:mm'));
-        console.log('Heure système native 1):', new Date().toLocaleString());
-        console.log('Heure système native 2):', new Date().toISOString());
-        console.log('-------------------------');
+        // console.log('USER TIMEZONE:', userTimezone);
+        // console.log('Heure locale (fuseau utilisateur):', today.format('YYYY-MM-DD HH:mm:ss'));
+        // console.log('Item time brut:', item.time);
+        // console.log('Heure affichée (fuseau utilisateur):', currentDate.format('HH:mm'));
+        // console.log('Heure système native 1):', new Date().toLocaleString());
+        // console.log('Heure système native 2):', new Date().toISOString());
 
         const isToday = currentDate.isSame(today, 'day');
         const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
@@ -375,75 +315,95 @@ export default function ChatScreen() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: '#fff' }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-        >
-            <View style={styles.header}>
-                <View style={styles.profileIcon}>
-                    <Text style={styles.profileLetter}>{email.charAt(0)}</Text>
-                    <View style={styles.onlineDot} />
+        <SafeAreaView style={{ flex: 1 }}>
+            <KeyboardAvoidingView
+                style={{ flex: 1, backgroundColor: '#fff' }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 50}
+            >
+                <View style={{ flex: 1 }}>
+                    <View style={styles.header}>
+                        <View style={styles.profileIcon}>
+                            <Text style={styles.profileLetter}>{email.charAt(0)}</Text>
+                            <View style={styles.onlineDot} />
+                        </View>
+                        <Text style={styles.headerTitle}>{email}</Text>
+                        <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
+                            <Ionicons name="close" size={24} color="#000" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {error ? <Text style={styles.error}>{error}</Text> : null}
+                    {isLoading && (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color="#007AFF" />
+                        </View>
+                    )}
+                    {!isLoading && (
+                        <FlatList
+                            ref={flatListRef}
+                            data={messages}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderItemWithDateSeparator}
+                            contentContainerStyle={styles.messageList}
+                            keyboardShouldPersistTaps="handled"
+                            onScroll={(event) => {
+                                const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+                                const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
+                                const isAtBottom =
+                                    isContentSmallerThanScreen ||
+                                    layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+
+                                setShowScrollToEnd(!isAtBottom);
+                            }}
+                            scrollEventThrottle={100}
+                        />
+                    )}
+                    <View style={styles.inputContainer}>
+                        <TouchableOpacity onPress={() => console.log('Add media')}>
+                            <Ionicons name="camera-outline" size={24} color="#000" style={styles.inputIcon} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => console.log('Voice input')}>
+                            <Ionicons name="mic-outline" size={24} color="#000" style={styles.inputIcon} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => console.log('Add image')}>
+                            <Ionicons name="image-outline" size={24} color="#000" style={styles.inputIcon} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => console.log('Add emoji')}>
+                            <Ionicons name="happy-outline" size={24} color="#000" style={styles.inputIcon} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => console.log('Add more')}>
+                            <Ionicons name="add-circle-outline" size={24} color="#000" style={styles.inputIcon} />
+                        </TouchableOpacity>
+                        <TextInput
+                            value={newMessage}
+                            onChangeText={setNewMessage}
+                            placeholder="Message..."
+                            style={[styles.input]}
+                            placeholderTextColor="#888"
+                            multiline={true}
+                        />
+                        <TouchableOpacity onPress={sendMessage} disabled={!newMessage.trim()}>
+                            <Ionicons
+                                name="send"
+                                size={24}
+                                color={newMessage.trim() ? '#0095f6' : '#888'}
+                                style={styles.inputIcon}
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
-                <Text style={styles.headerTitle}>{email}</Text>
-                <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
-                    <Ionicons name="close" size={24} color="#000" />
-                </TouchableOpacity>
-            </View>
+                {showScrollToEnd && (
+                    <TouchableOpacity
+                        style={styles.fab}
+                        onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    >
+                        <Ionicons name="arrow-down" size={28} color="#fff" />
+                    </TouchableOpacity>
+                )}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            {isLoading ? (
-                <Text style={styles.loading}>Loading...</Text>
-            ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderItemWithDateSeparator}
-                    contentContainerStyle={styles.messageList}
-                    keyboardShouldPersistTaps="handled"
-                    onScroll={(event) => {
-                        const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-                        const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
-                        const isAtBottom =
-                            isContentSmallerThanScreen ||
-                            layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
-
-                        setShowScrollToEnd(!isAtBottom);
-                    }}
-                    scrollEventThrottle={100}
-                />
-            )}
-            <View style={styles.inputContainer}>
-                <TouchableOpacity onPress={() => console.log('Add media')}>
-                    <Ionicons name="camera-outline" size={24} color="#000" style={styles.inputIcon} />
-                </TouchableOpacity>
-                <TextInput
-                    value={newMessage}
-                    onChangeText={setNewMessage}
-                    placeholder="Message..."
-                    style={styles.input}
-                    multiline
-                    placeholderTextColor="#888"
-                />
-                <TouchableOpacity onPress={sendMessage} disabled={!newMessage.trim()}>
-                    <Ionicons
-                        name="send"
-                        size={24}
-                        color={newMessage.trim() ? '#0095f6' : '#888'}
-                        style={styles.inputIcon}
-                    />
-                </TouchableOpacity>
-            </View>
-            {showScrollToEnd && (
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                >
-                    <Ionicons name="arrow-down" size={28} color="#fff" />
-                </TouchableOpacity>
-            )}
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
@@ -456,8 +416,6 @@ const styles = StyleSheet.create({
         paddingBottom: 5,
         marginTop: 15,
         backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#aa2b2bff',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -502,11 +460,12 @@ const styles = StyleSheet.create({
         marginLeft: 15,
     },
     messageList: {
-        padding: 15,
         flexGrow: 1,
+        padding: 15,
+        paddingBottom: 30,
     },
     messageContainer: {
-        marginBottom: 10,
+        marginBottom: 5,
         padding: 5,
         borderRadius: 10,
         maxWidth: '75%',
@@ -538,23 +497,25 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 10,
+        padding: 5,
         backgroundColor: '#fff',
         borderTopWidth: 1,
         borderTopColor: '#ccc',
+        minHeight: 50,
     },
     input: {
         flex: 1,
+        paddingHorizontal: 5,
         backgroundColor: '#f0f0f0',
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
         fontSize: 16,
-        marginHorizontal: 10,
+        marginHorizontal: 5,
+        textAlignVertical: 'center',
+        height: 15,
+        textAlign: 'left',
+        paddingVertical: 5,
     },
     inputIcon: {
-        padding: 5,
+        paddingHorizontal: 3,
     },
     error: {
         color: 'red',
@@ -600,6 +561,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 5,
-        zIndex: 100,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
 });
