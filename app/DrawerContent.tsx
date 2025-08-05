@@ -1,13 +1,34 @@
+import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { useRouter } from "expo-router";
-import React from "react";
-import { Alert, Image, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Image, StyleSheet, Switch, Text, useColorScheme, View } from "react-native";
 
-export default function CustomDrawerContent(props: any) {
+type Props = {
+    isDarkMode: boolean;
+    toggleDarkMode: () => void;
+};
+
+export default function CustomDrawerContent(props: any & Props) {
+    const colorScheme = useColorScheme();
     const { isDarkMode, toggleDarkMode } = props;
     const router = useRouter();
+    const [user_name, setUsername] = useState('');
+    const [mail, setMail] = useState('');
+    useEffect(() => {
+        getUser();
+    }, []);
+
+    const getUser = async () => {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+            const user = JSON.parse(userData);
+            setUsername(user.name);
+            setMail(user.mail || ''); // Assurez-vous que l'email est défini
+        }
+    };
 
     const handleLogoutOrSwitchAccount = async () => {
         Alert.alert(
@@ -38,25 +59,29 @@ export default function CustomDrawerContent(props: any) {
     };
 
     return (
-        <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContainer}>
-            {/* En-tête personnalisé */}
-            <View style={styles.drawerHeader}>
+        <DrawerContentScrollView {...props}
+            contentContainerStyle={[styles.drawerContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+
+            <View style={[styles.drawerHeader, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
                 <Image
                     source={require('../assets/images/splash-icon.png')} // Image locale fictive
                     style={styles.profileImage}
                 />
                 <View style={styles.profileInfo}>
-                    <Text style={styles.drawerName}>John Doe</Text> {/* Remplacez par le nom réel */}
-                    <Text style={styles.drawerStatus}>En ligne</Text>
+                    <Text style={styles.drawerName}>{user_name}</Text> {/* Remplacez par le nom réel */}
+                    <Text style={styles.drawerStatus}>{mail}</Text>
                 </View>
             </View>
 
-            {/* Options du drawer */}
-            <DrawerItem
-                label={isDarkMode ? 'Mode clair' : 'Mode sombre'}
-                icon={() => <Ionicons name={isDarkMode ? 'sunny' : 'moon'} size={20} color="#000" />}
-                onPress={toggleDarkMode}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
+                <DrawerItem
+                    label="Thème sombre"
+                    icon={() => <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={20} color="#000" />}
+                    onPress={toggleDarkMode}
+                    style={{ flex: 1 }}
+                />
+                <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
+            </View>
             <DrawerItem
                 label="Préférences"
                 icon={() => <Ionicons name="settings" size={20} color="#000" />}
@@ -74,11 +99,9 @@ export default function CustomDrawerContent(props: any) {
 const styles = StyleSheet.create({
     drawerContainer: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     drawerHeader: {
-        padding: 20,
-        backgroundColor: '#aa2b2bff',
+        padding: 10,
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomWidth: 1,
@@ -87,7 +110,7 @@ const styles = StyleSheet.create({
     profileImage: {
         width: 50,
         height: 50,
-        borderRadius: 25,
+        borderRadius: 20,
         marginRight: 15,
         borderWidth: 2,
         borderColor: '#fff',

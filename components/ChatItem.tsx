@@ -66,7 +66,7 @@ export function ChatItem({ conversation_type, email, text, time, unreadCount, na
           <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
         ) : (
           <Text style={styles.hashtag}>
-            {(name || email || '?').charAt(0).toUpperCase()}
+            {(name || email).charAt(0).toUpperCase()}
           </Text>
         )}
       </View>

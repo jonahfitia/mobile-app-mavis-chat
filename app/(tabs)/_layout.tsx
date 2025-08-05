@@ -16,6 +16,7 @@ export default function TabLayout() {
   const navigation = useNavigation<DrawerNavigationProp<any>>();
   const [user_name, setUsername] = useState('');
   const totalUnread = 2;
+  
   useEffect(() => {
     getUser();
   }, []);

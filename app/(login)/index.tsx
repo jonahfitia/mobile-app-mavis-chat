@@ -1,8 +1,9 @@
 
+import { Colors } from '@/constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { Button, Text, TextInput, Title, useTheme } from 'react-native-paper';
 import { CONFIG } from './../../config';
 
@@ -14,6 +15,7 @@ const LoginScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const router = useRouter();
+  const ColorScheme = useColorScheme();
 
   const handleLogin = async () => {
     setLoading(true);
@@ -41,7 +43,7 @@ const LoginScreen: React.FC = () => {
 
       const match = rawSetCookie.match(/session_id=([^;]+)/);
       const sessionId = match ? match[1] : '';
-      
+
       if (data.error) {
         Alert.alert('Erreur', data.error.message || 'Échec de l\'authentification');
       } else if (data.result && data.result.uid) {
@@ -51,6 +53,7 @@ const LoginScreen: React.FC = () => {
             name: data.result.name,
             session_id: sessionId,
             context: data.result.user_context,
+            mail: data.result.username,
           };
 
           await AsyncStorage.setItem('user', JSON.stringify(userInfo));
@@ -70,7 +73,7 @@ const LoginScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: Colors[ColorScheme ?? 'light'].tint }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.innerContainer}>
@@ -117,7 +120,7 @@ const LoginScreen: React.FC = () => {
           onPress={handleLogin}
           disabled={loading}
           loading={loading}
-          style={styles.button}
+          style={[styles.button, { backgroundColor: Colors[ColorScheme ?? 'light'].tabIconSelected }]}
           contentStyle={{ paddingVertical: 8 }}
         >
           Connexion
@@ -132,7 +135,6 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#327bc3ff',
     justifyContent: 'center',
     padding: 20,
   },
@@ -164,6 +166,7 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     borderRadius: 8,
+    color: '#fff',
   },
   footer: {
     marginTop: 20,
