@@ -5,8 +5,8 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { ProgressBar } from 'react-native-paper';
 
 const SplashScreen = () => {
-  const [progress, setProgress] = useState(0);
-  const progressRef = useRef(0);
+  const [progressValue, setProgressValue] = useState(0); // State to hold number value for ProgressBar
+  const animatedProgress = useRef(new Animated.Value(0)).current; // Animated.Value for animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const router = useRouter();
 
@@ -18,36 +18,52 @@ const SplashScreen = () => {
       useNativeDriver: true,
     }).start();
 
-    // Progression dynamique
-    const interval = setInterval(() => {
-      if (progressRef.current < 1) {
-        progressRef.current += 0.01;
-        setProgress(progressRef.current);
-      } else {
-        clearInterval(interval); // Arrête la progression à 100%
+    // Animation de la barre de progression
+    Animated.timing(animatedProgress, {
+      toValue: 1,
+      duration: 3000, // Durée totale de 3 secondes
+      useNativeDriver: false, // ProgressBar ne prend pas en charge useNativeDriver
+    }).start(({ finished }) => {
+      if (finished) {
+        console.log('Animation terminée, appel de checkAuthAndNavigate');
         checkAuthAndNavigate();
       }
-    }, 300);
+    });
 
-    return () => clearInterval(interval);
+    // Écouter les changements de animatedProgress pour mettre à jour progressValue
+    const listener = animatedProgress.addListener(({ value }) => {
+      setProgressValue(value); // Convertir Animated.Value en number
+    });
+
+    // Nettoyer le listener pour éviter les fuites de mémoire
+    return () => {
+      animatedProgress.removeListener(listener);
+    };
   }, []);
 
   const checkAuthAndNavigate = async () => {
-    const userData = await AsyncStorage.getItem('user');
-    const lastSession = await AsyncStorage.getItem('lastSession');
-    const now = new Date();
-    if (userData && lastSession) {
-      const { timestamp } = JSON.parse(lastSession);
-      const lastTime = new Date(timestamp);
-      const diffMinutes = (now.getTime() - lastTime.getTime()) / (1000 * 60);
-      if (diffMinutes < 30) {
-        router.replace('/(tabs)/ChatScreen'); // Connecté
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      const lastSession = await AsyncStorage.getItem('lastSession');
+      console.log('userData:', userData);
+      console.log('lastSession:', lastSession);
+
+      const now = new Date();
+      if (userData && lastSession) {
+        const { timestamp } = JSON.parse(lastSession);
+        const lastTime = new Date(timestamp);
+        const diffMinutes = (now.getTime() - lastTime.getTime()) / (1000 * 60);
+        if (diffMinutes < 30) {
+          router.replace('/(tabs)'); // Connecté
+        } else {
+          await AsyncStorage.removeItem('lastSession');
+          router.replace('/(login)'); // Déconnecté après 30 min
+        }
       } else {
-        await AsyncStorage.removeItem('lastSession');
-        router.replace('/(login)'); // Déconnecté après 30 min
+        router.replace('/(login)'); // Pas de données utilisateur
       }
-    } else {
-      router.replace('/(login)'); // Pas de données utilisateur
+    } catch (error) {
+      console.error('Erreur dans checkAuthAndNavigate:', error);
     }
   };
 
@@ -57,7 +73,7 @@ const SplashScreen = () => {
         MAVIS CHAT
       </Animated.Text>
       <ProgressBar
-        progress={progress}
+        progress={progressValue} // Utiliser progressValue (number) au lieu de animatedProgress
         color="#0c25e1ff"
         style={styles.progressBar}
       />

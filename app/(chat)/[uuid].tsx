@@ -6,6 +6,8 @@ import 'dayjs/locale/fr';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -20,7 +22,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { TextInput, useTheme } from 'react-native-paper';
+import { TextInput } from 'react-native-paper';
 import { CONFIG } from '../../config';
 
 dayjs.extend(utc);
@@ -59,23 +61,26 @@ interface ChatMessage {
 }
 
 export default function ChatScreen() {
-    const { uuid, conversation_type, email, channel_id } = useLocalSearchParams<{
+    const { uuid, conversation_type, email, name, channel_id } = useLocalSearchParams<{
         uuid: string;
         conversation_type: 'chat' | 'channel' | 'group';
         email: string;
         channel_id: string;
+        name: string
     }>();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [error, setError] = useState('');
     const [partnerId, setPartnerId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const theme = useTheme();
     const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
     const [showScrollToEnd, setShowScrollToEnd] = useState(false);
     const [hasScrolledInitially, setHasScrolledInitially] = useState(false);
     const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone); // Alternative
+
+    const colorScheme = useColorScheme();
+    const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
     const getPartnerId = async (): Promise<number | null> => {
 
@@ -168,7 +173,6 @@ export default function ChatScreen() {
 
     useEffect(() => {
         let isMounted = true;
-
         const load = async () => {
             setHasScrolledInitially(true);
             setIsLoading(true);
@@ -177,7 +181,7 @@ export default function ChatScreen() {
                 setIsLoading(false);
                 setTimeout(() => {
                     flatListRef.current?.scrollToEnd({ animated: true });
-                }, 100); // Délai pour s'assurer que le rendu est terminé
+                }, 100);
             }
         };
 
@@ -268,12 +272,6 @@ export default function ChatScreen() {
         // Utiliser dayjs() pour l'heure locale, puis appliquer le fuseau
         const systemTime = new Date().getTime();
         const today = dayjs.tz(systemTime, userTimezone);
-        // console.log('USER TIMEZONE:', userTimezone);
-        // console.log('Heure locale (fuseau utilisateur):', today.format('YYYY-MM-DD HH:mm:ss'));
-        // console.log('Item time brut:', item.time);
-        // console.log('Heure affichée (fuseau utilisateur):', currentDate.format('HH:mm'));
-        // console.log('Heure système native 1):', new Date().toLocaleString());
-        // console.log('Heure système native 2):', new Date().toISOString());
 
         const isToday = currentDate.isSame(today, 'day');
         const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
@@ -317,19 +315,19 @@ export default function ChatScreen() {
     return (
         <SafeAreaView style={{ flex: 1 }}>
             <KeyboardAvoidingView
-                style={{ flex: 1, backgroundColor: '#fff' }}
+                style={{ flex: 1, backgroundColor: theme.background }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 50}
             >
                 <View style={{ flex: 1 }}>
-                    <View style={styles.header}>
+                    <View style={[styles.header, { backgroundColor: theme.tint }]}>
                         <View style={styles.profileIcon}>
-                            <Text style={styles.profileLetter}>{email.charAt(0)}</Text>
+                            <Text style={styles.profileLetter}>{name.charAt(0)}</Text>
                             <View style={styles.onlineDot} />
                         </View>
-                        <Text style={styles.headerTitle}>{email}</Text>
+                        <Text style={[styles.headerTitle, { color: theme.background }]}>{name}</Text>
                         <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
-                            <Ionicons name="close" size={24} color="#000" />
+                            <Ionicons name="close" size={24} color={theme.background} />
                         </TouchableOpacity>
                     </View>
 
@@ -359,21 +357,21 @@ export default function ChatScreen() {
                             scrollEventThrottle={100}
                         />
                     )}
-                    <View style={styles.inputContainer}>
+                    <View style={[styles.inputContainer, { backgroundColor: theme.tint }]}>
                         <TouchableOpacity onPress={() => console.log('Add media')}>
-                            <Ionicons name="camera-outline" size={24} color="#000" style={styles.inputIcon} />
+                            <Ionicons name="camera-outline" size={24} color="#fff" style={styles.inputIcon} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => console.log('Voice input')}>
-                            <Ionicons name="mic-outline" size={24} color="#000" style={styles.inputIcon} />
+                            <Ionicons name="mic-outline" size={24} color="#fff" style={styles.inputIcon} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => console.log('Add image')}>
-                            <Ionicons name="image-outline" size={24} color="#000" style={styles.inputIcon} />
+                            <Ionicons name="image-outline" size={24} color="#fff" style={styles.inputIcon} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => console.log('Add emoji')}>
-                            <Ionicons name="happy-outline" size={24} color="#000" style={styles.inputIcon} />
+                            <Ionicons name="happy-outline" size={24} color="#fff" style={styles.inputIcon} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => console.log('Add more')}>
-                            <Ionicons name="add-circle-outline" size={24} color="#000" style={styles.inputIcon} />
+                            <Ionicons name="add-circle-outline" size={24} color="#fff" style={styles.inputIcon} />
                         </TouchableOpacity>
                         <TextInput
                             value={newMessage}

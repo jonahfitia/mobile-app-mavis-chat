@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import DrawerContent from './DrawerContent';
+import DrawerContent from '../components/DrawerContent';
+import SplashScreen from './screens/SplashScreen';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -28,7 +29,6 @@ export default function RootLayout() {
     }
   };
 
-
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -45,6 +45,10 @@ export default function RootLayout() {
 
     initializeApp();
   }, []);
+
+  if (showSplash || !loaded) {
+    return <SplashScreen />;
+  }
 
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>

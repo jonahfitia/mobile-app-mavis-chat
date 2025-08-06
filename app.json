@@ -35,7 +35,8 @@
             "includeSubdomains": true
           }
         ]
-      }
+      },
+      "package": "com.mavis.chat"
     },
     "web": {
       "bundler": "metro",
@@ -65,6 +66,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ed96cd1a-0245-4a87-b3e3-02bece07ef1f"
+      }
     }
   }
 }

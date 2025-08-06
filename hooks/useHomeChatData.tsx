@@ -21,7 +21,6 @@ interface Channel {
     members?: { id: number; email: string; name: string }[];
     last_message_id?: number;
 }
-
 interface Message {
     result: any;
     id: number;
@@ -65,7 +64,6 @@ export default function useHomeChatData() {
 
     // Initialiser userId, sessionId et partnerId
     useEffect(() => {
-
         let isMounted = true;
         const initializeUser = async () => {
             try {
@@ -93,7 +91,6 @@ export default function useHomeChatData() {
                 const session = sessionResponse.data;
                 const partnerId = session?.result?.partner_id;
                 setPartnerId(partnerId);
-                // console.log('User initialized:', user.name, user.uid, user.session_id, sessionResponse.data.result?.partner_id);
                 const load = async () => {
                     setIsLoading(true);
                     await fetchConversations();
@@ -176,6 +173,11 @@ export default function useHomeChatData() {
                 const lastAuthor = lastMessage.author_id?.[1] || 'Unknown';
                 const isMine = lastMessage.author_id?.[0] === partnerId;
                 let displayText = cleanText;
+                let displayName = channel.name;
+                if (channel.channel_type === 'chat') {
+                    const otherMember = channel.members?.find(m => m.id !== initResponse.data.result.current_partner.id);
+                    displayName = otherMember ? otherMember.name || otherMember.email : 'Unknown';
+                }
                 if (channel.channel_type !== 'chat') {
                     displayText = isMine ? `⤻ Vous : ${cleanText}` : `⤻ ${lastAuthor} : ${cleanText}`;
                 } else if (isMine) {
@@ -188,7 +190,7 @@ export default function useHomeChatData() {
                     text: displayText,
                     time: lastMessage.date || '1970-01-01T00:00:00',
                     uuid: channel.uuid,
-                    name: channel.name,
+                    name: displayName,
                     channelId: channel.id,
                     unreadCount: unreadCounts[channel.uuid] ?? 0,
                 };
@@ -321,6 +323,8 @@ export default function useHomeChatData() {
     // }, [userId, sessionId, chatData, updateChannelUnreadCount]);
 
     const handleConversationPress = async (uuid: string, channelId: number) => {
+        // console.log("-------------------------");
+        // console.log(chatData);
         try {
             const historyResponse = await axios.post<{ result: Message[] }>(
                 `${CONFIG.SERVER_URL}/mail/chat_history`,
@@ -358,10 +362,11 @@ export default function useHomeChatData() {
                 params: {
                     uuid,
                     channelId: channelId.toString(),
-                    conversation_type: chatData.find(item => item.uuid === uuid)?.conversation_type || 'channel',
+                    conversation_type: chatData.find(item => item.uuid === uuid)?.conversation_type,
                     email: chatData.find(item => item.uuid === uuid)?.email || '',
                     userId: userId?.toString() || '',
                     session_id: sessionId || '',
+                    name: chatData.find(item => item.uuid === uuid)?.name || '',
                 },
             });
         } catch (error) {

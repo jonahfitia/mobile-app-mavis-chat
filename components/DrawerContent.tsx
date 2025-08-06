@@ -11,22 +11,32 @@ type Props = {
     toggleDarkMode: () => void;
 };
 
-export default function CustomDrawerContent(props: any & Props) {
+export default function DrawerContent(props: any & Props) {
     const colorScheme = useColorScheme();
     const { isDarkMode, toggleDarkMode } = props;
     const router = useRouter();
-    const [user_name, setUsername] = useState('');
-    const [mail, setMail] = useState('');
+    const [user_name, setUsername] = useState<string>('Guest');
+    const [mail, setMail] = useState<string>('');
+
     useEffect(() => {
         getUser();
     }, []);
 
     const getUser = async () => {
-        const userData = await AsyncStorage.getItem('user');
-        if (userData) {
-            const user = JSON.parse(userData);
-            setUsername(user.name);
-            setMail(user.mail || ''); // Assurez-vous que l'email est défini
+        try {
+            const userData = await AsyncStorage.getItem('user');
+            if (userData) {
+                const user = JSON.parse(userData);
+                setUsername(user.name || 'Guest');
+                setMail(user.mail || 'No email provided');
+            } else {
+                setUsername('Guest');
+                setMail('No email provided');
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            setUsername('Guest');
+            setMail('No email provided');
         }
     };
 
@@ -48,48 +58,73 @@ export default function CustomDrawerContent(props: any & Props) {
                 {
                     text: 'Changer de compte',
                     onPress: async () => {
-                        // Logique pour changer de compte (par ex., rediriger vers une page de sélection)
                         await AsyncStorage.removeItem('user');
                         await AsyncStorage.removeItem('lastSession');
-                        router.replace('/(login)'); // Remplacez par une route de sélection de compte si disponible
+                        router.replace('/(login)');
                     },
                 },
             ]
         );
     };
 
-    return (
-        <DrawerContentScrollView {...props}
-            contentContainerStyle={[styles.drawerContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+    const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
-            <View style={[styles.drawerHeader, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+    return (
+        <DrawerContentScrollView
+            {...props}
+            contentContainerStyle={[styles.drawerContainer, { backgroundColor: theme.background }]}
+        >
+            <View style={[styles.drawerHeader, { backgroundColor: theme.tint }]}>
                 <Image
-                    source={require('../assets/images/splash-icon.png')} // Image locale fictive
+                    source={require('../assets/images/splash-icon.png')}
                     style={styles.profileImage}
                 />
                 <View style={styles.profileInfo}>
-                    <Text style={styles.drawerName}>{user_name}</Text> {/* Remplacez par le nom réel */}
-                    <Text style={styles.drawerStatus}>{mail}</Text>
+                    <Text style={[styles.drawerName, { color: theme.text }]}>
+                        {user_name}
+                    </Text>
+                    <Text style={[styles.drawerStatus, { color: theme.text }]}>
+                        {mail}
+                    </Text>
                 </View>
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
                 <DrawerItem
-                    label="Thème sombre"
-                    icon={() => <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={20} color="#000" />}
+                    label={({ focused, color }) => (
+                        <Text style={{ fontSize: 16, color }}>
+                            Thème sombre
+                        </Text>
+                    )}
+                    icon={({ focused, size, color }) => (
+                        <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={20} color={color} />
+                    )}
                     onPress={toggleDarkMode}
                     style={{ flex: 1 }}
                 />
                 <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
             </View>
+
             <DrawerItem
-                label="Préférences"
-                icon={() => <Ionicons name="settings" size={20} color="#000" />}
-                onPress={() => router.push('/Preferences')} // Créez une page Preferences si nécessaire
+                label={({ focused, color }) => (
+                    <Text style={{ fontSize: 16, color }}>
+                        Préférences
+                    </Text>
+                )}
+                icon={({ focused, size, color }) => (
+                    <Ionicons name="settings" size={20} color={color} />
+                )}
+                onPress={() => router.push('/Preferences')}
             />
             <DrawerItem
-                label="Déconnexion / Changer de compte"
-                icon={() => <Ionicons name="log-out" size={20} color="#000" />}
+                label={({ focused, color }) => (
+                    <Text style={{ fontSize: 16, color }}>
+                        Déconnexion / Changer de compte
+                    </Text>
+                )}
+                icon={({ focused, size, color }) => (
+                    <Ionicons name="log-out" size={20} color={color} />
+                )}
                 onPress={handleLogoutOrSwitchAccount}
             />
         </DrawerContentScrollView>
@@ -121,10 +156,8 @@ const styles = StyleSheet.create({
     drawerName: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#fff',
     },
     drawerStatus: {
         fontSize: 14,
-        color: '#ddd',
     },
 });

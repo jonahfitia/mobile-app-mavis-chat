@@ -43,12 +43,16 @@ export function ChatItem({ conversation_type, email, text, time, unreadCount, na
   const isChaine = conversation_type === 'channel';
   const isGroup = conversation_type === 'group';
   const randomBgColor = React.useMemo(() => getRandomColor(), []);
+
+  const theme = Colors[colorScheme ?? 'light'] || Colors.light;
+
   return (
     <ThemedView style={[
       styles.container,
       {
         borderWidth: 0.1,
-        borderColor: Colors[colorScheme ?? 'light'].tint
+        borderColor: theme.background,
+        backgroundColor: theme.background,
       }
     ]}>
       <View
@@ -127,13 +131,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  content: {
-    flex: 1,
-  },
   email: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 2,
+  },
+  content: {
+    flex: 1,
   },
   message: {
     fontSize: 14,

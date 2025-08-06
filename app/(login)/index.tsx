@@ -120,8 +120,11 @@ const LoginScreen: React.FC = () => {
           onPress={handleLogin}
           disabled={loading}
           loading={loading}
-          style={[styles.button, { backgroundColor: Colors[ColorScheme ?? 'light'].tabIconSelected }]}
+          style={[styles.button, {
+            backgroundColor: Colors[ColorScheme ?? 'light'].tabIconSelected,
+          }]}
           contentStyle={{ paddingVertical: 8 }}
+          labelStyle={{ color: Colors[ColorScheme ?? 'light'].tabIconDefault }}
         >
           Connexion
         </Button>
@@ -147,6 +150,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     marginBottom: 4,
+    fontVariant: ['small-caps'],
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   subtitle: {
@@ -166,7 +171,6 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     borderRadius: 8,
-    color: '#fff',
   },
   footer: {
     marginTop: 20,

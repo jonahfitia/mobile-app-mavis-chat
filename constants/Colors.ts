@@ -1,31 +1,39 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-const tintColorLight = '#875A7B'; // Violet Odoo
-const tintColorDark = '#D8BFD8';  // Version claire du violet
-const secondary = '#F06050';      // Accent Odoo
-
-const Learning_Partner = '#F4A62A'; // Jaune-orange (Odoo badges)
-const Ready_Partner = '#00B09B';    // Vert menthe
-const Silver_Partner = '#B0BEC5';   // Gris bleuté
-const Gold_Partner = '#FFD700';     // Or
+// Couleurs de la charte graphique de l'entreprise
+const tintColorLight = '#1a396b'; // Bleu foncé principal (mode clair)
+const tintColorDark = '#2f929c';  // Vert-bleu principal (mode sombre)
+const secondary = '#80a8ba';      // Bleu-gris secondaire
 
 export const Colors = {
   light: {
-    text: '#2C3E50',
-    background: '#F9F9F9',
+    text: tintColorLight,
+    background: '#ffffff',
     tint: tintColorLight,
-    icon: '#7F8C8D',
-    tabIconDefault: '#BDC3C7',
+    icon: secondary,
+    tabIconDefault: '#cccccc',
     tabIconSelected: tintColorLight,
+    primary: tintColorLight,
+    secondary: secondary,
+    border: secondary,
+    card: '#f0f6fa',
+    surface: '#ffffff',
+    error: '#ff4444',
+    success: '#4CAF50',
+    warning: '#FFC107',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#2B2B2B',
+    text: '#ffffff',
+    background: '#0f1e2f',
     tint: tintColorDark,
-    icon: '#AAAAAA',
-    tabIconDefault: '#7F8C8D',
+    icon: secondary,
+    tabIconDefault: '#666666',
     tabIconSelected: tintColorDark,
+    primary: tintColorDark,
+    secondary: secondary,
+    border: secondary,
+    card: '#1e3d4f',
+    surface: '#1a1a1a',
+    error: '#ff6666',
+    success: '#66bb6a',
+    warning: '#ffca28',
   },
 };
