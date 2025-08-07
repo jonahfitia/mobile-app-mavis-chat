@@ -15,7 +15,7 @@ export default function DrawerContent(props: any & Props) {
     const colorScheme = useColorScheme();
     const { isDarkMode, toggleDarkMode } = props;
     const router = useRouter();
-    const [user_name, setUsername] = useState<string>('Guest');
+    const [user_name, setUsername] = useState<string>('');
     const [mail, setMail] = useState<string>('');
 
     useEffect(() => {
@@ -25,9 +25,10 @@ export default function DrawerContent(props: any & Props) {
     const getUser = async () => {
         try {
             const userData = await AsyncStorage.getItem('user');
+            console.log("------------------- user Data ", userData);
             if (userData) {
                 const user = JSON.parse(userData);
-                setUsername(user.name || 'Guest');
+                setUsername(user.name);
                 setMail(user.mail || 'No email provided');
             } else {
                 setUsername('Guest');
@@ -80,10 +81,10 @@ export default function DrawerContent(props: any & Props) {
                     style={styles.profileImage}
                 />
                 <View style={styles.profileInfo}>
-                    <Text style={[styles.drawerName, { color: theme.text }]}>
+                    <Text style={[styles.drawerName, { color: '#fff' }]}>
                         {user_name}
                     </Text>
-                    <Text style={[styles.drawerStatus, { color: theme.text }]}>
+                    <Text style={[styles.drawerStatus, { color: "#fff" }]}>
                         {mail}
                     </Text>
                 </View>
@@ -93,7 +94,7 @@ export default function DrawerContent(props: any & Props) {
                 <DrawerItem
                     label={({ focused, color }) => (
                         <Text style={{ fontSize: 16, color }}>
-                            Thème sombre
+                            Dark / Light
                         </Text>
                     )}
                     icon={({ focused, size, color }) => (
@@ -108,7 +109,7 @@ export default function DrawerContent(props: any & Props) {
             <DrawerItem
                 label={({ focused, color }) => (
                     <Text style={{ fontSize: 16, color }}>
-                        Préférences
+                        Preferences
                     </Text>
                 )}
                 icon={({ focused, size, color }) => (
@@ -119,7 +120,7 @@ export default function DrawerContent(props: any & Props) {
             <DrawerItem
                 label={({ focused, color }) => (
                     <Text style={{ fontSize: 16, color }}>
-                        Déconnexion / Changer de compte
+                        Logout / Change account
                     </Text>
                 )}
                 icon={({ focused, size, color }) => (
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
     },
     profileInfo: {
         flex: 1,
+        color: "#fff"
     },
     drawerName: {
         fontSize: 18,

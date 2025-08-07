@@ -8,7 +8,7 @@ import { Button, Text, TextInput, Title, useTheme } from 'react-native-paper';
 import { CONFIG } from './../../config';
 
 const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>('jonahrafit.ram@hotmail.com');
+  const [email, setEmail] = useState<string>('jonahrafit@mavis.com');
   const [password, setPassword] = useState<string>('admin');
   const [secureText, setSecureText] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
@@ -56,8 +56,10 @@ const LoginScreen: React.FC = () => {
             mail: data.result.username,
           };
 
+          console.log(" user info ", userInfo);
           await AsyncStorage.setItem('user', JSON.stringify(userInfo));
-
+          const userData = await AsyncStorage.getItem('user');
+          console.log("User data", userData);
         }
       } else {
         Alert.alert('Erreur', 'Identifiants incorrects');
