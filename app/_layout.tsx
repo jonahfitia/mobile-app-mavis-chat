@@ -11,9 +11,9 @@ import SplashScreen from './screens/SplashScreen';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  })
 
   const [showSplash, setShowSplash] = useState(true);
   const router = useRouter();
@@ -29,27 +29,30 @@ export default function RootLayout() {
     }
   };
 
-  useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem('darkMode');
-        if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'true'); // 'true' (string) -> true (boolean)
-        }
-      } catch (error) {
-        console.warn('Erreur de chargement du thème:', error);
-      } finally {
-        setShowSplash(false);
+  const initializeApp = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('darkMode');
+      console.log("saveTheme", savedTheme);
+      if (savedTheme !== null) {
+        setIsDarkMode(savedTheme === 'true');
       }
-    };
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } catch (error) {
+      console.warn('Erreur de chargement du thème:', error);
+    } finally {
+      setShowSplash(false);
+    }
+  };
 
+  useEffect(() => {
     initializeApp();
   }, []);
 
-  if (showSplash || !loaded) {
+  if (!loaded || error || showSplash) {
     return <SplashScreen />;
   }
 
+  console.log('RootLayout rendered');
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
       <Drawer
@@ -69,6 +72,8 @@ export default function RootLayout() {
           name="(login)"
           options={{ title: 'Login' }}
         />
+        <Drawer.Screen name="/home" options={{ title: 'Home' }} />
+        <Drawer.Screen name="/(chat)/[uuid]" options={{ title: 'Conversation' }} />
       </Drawer>
       <StatusBar style="auto" />
     </ThemeProvider>

@@ -43,7 +43,7 @@ interface InitMessagingResponse {
 }
 
 export interface ChatData {
-    name: string | undefined;
+    name: string;
     conversation_type: 'channel' | 'chat' | 'group';
     email: string;
     text: string;
@@ -323,8 +323,6 @@ export default function useHomeChatData() {
     // }, [userId, sessionId, chatData, updateChannelUnreadCount]);
 
     const handleConversationPress = async (uuid: string, channelId: number) => {
-        // console.log("-------------------------");
-        // console.log(chatData);
         try {
             const historyResponse = await axios.post<{ result: Message[] }>(
                 `${CONFIG.SERVER_URL}/mail/chat_history`,
@@ -339,7 +337,6 @@ export default function useHomeChatData() {
                     },
                 }
             );
-            // console.log('History response:', historyResponse.data);
             const lastMessageId = historyResponse.data.result[0]?.id;
             if (lastMessageId) {
                 await axios.post(
@@ -357,6 +354,7 @@ export default function useHomeChatData() {
                 );
                 await updateChannelUnreadCount(channelId, uuid);
             }
+
             router.push({
                 pathname: '/(chat)/[uuid]',
                 params: {
@@ -366,7 +364,65 @@ export default function useHomeChatData() {
                     email: chatData.find(item => item.uuid === uuid)?.email || '',
                     userId: userId?.toString() || '',
                     session_id: sessionId || '',
-                    name: chatData.find(item => item.uuid === uuid)?.name || '',
+                    name: chatData.find(item => item.uuid === uuid)?.name,
+                },
+            });
+        } catch (error) {
+            console.error('Erreur lors de l’ouverture du canal:', error);
+            setError('Failed to open conversation');
+        }
+    };
+
+
+    const handleConversationPressWithAllParameter = async (
+        uuid: string,
+        channelId: number,
+        name: string,
+        conversation_type: string,
+        email: string
+    ) => {
+        try {
+            const historyResponse = await axios.post<{ result: Message[] }>(
+                `${CONFIG.SERVER_URL}/mail/chat_history`,
+                {
+                    jsonrpc: '2.0',
+                    method: 'call',
+                    params: { uuid, limit: 1 },
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            const lastMessageId = historyResponse.data.result[0]?.id;
+            if (lastMessageId) {
+                await axios.post(
+                    `${CONFIG.SERVER_URL}/mail/channel/seen`,
+                    {
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: { channel_id: channelId, last_message_id: lastMessageId },
+                    },
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                );
+                await updateChannelUnreadCount(channelId, uuid);
+            }
+
+            router.push({
+                pathname: '/(chat)/[uuid]',
+                params: {
+                    uuid,
+                    channelId: channelId.toString(),
+                    conversation_type: conversation_type,
+                    email: email,
+                    userId: userId?.toString() || '',
+                    session_id: sessionId || '',
+                    name: name,
                 },
             });
         } catch (error) {
@@ -381,5 +437,6 @@ export default function useHomeChatData() {
         error,
         refetch: fetchConversations,
         handleConversationPress,
+        handleConversationPressWithAllParameter
     };
 }

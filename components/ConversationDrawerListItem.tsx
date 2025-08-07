@@ -1,11 +1,10 @@
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import useHomeChatData from '@/hooks/useHomeChatData';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 dayjs.extend(utc);
@@ -35,7 +34,7 @@ dayjs.locale('fr');
 
 type ConversationDrawerListItemProps = {
     channel: {
-        name?: string;
+        name: string;
         conversation_type: 'channel' | 'chat' | 'group';
         email: string;
         text: string;
@@ -47,41 +46,56 @@ type ConversationDrawerListItemProps = {
     theme: {
         tint: string;
     };
+    onConversationPress?: (
+        uuid: string,
+        channelId: number,
+        name: string,
+        conversation_type: string,
+        email: string
+    ) => Promise<void>
 };
 
-export function ConversationDrawerListItem({ channel, theme }: ConversationDrawerListItemProps) {
+export function ConversationDrawerListItem({ channel, theme, onConversationPress }: ConversationDrawerListItemProps) {
     const isChaine = channel.conversation_type === 'channel';
     const isGroup = channel.conversation_type === 'group';
 
-    const { handleConversationPress } = useHomeChatData();
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+    const handlePress = () => {
+        if (onConversationPress) {
+            onConversationPress(channel.uuid, channel.channelId, channel.name, channel.conversation_type, channel.email);
+        }
+    };
     return (
-        <TouchableOpacity style={styles.contactItem} onPress={() => handleConversationPress(channel.uuid, channel.channelId)}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                    style={[
-                        styles.iconContainer,
-                        {
-                            borderRadius: isChaine ? 5 : 15,
-                            backgroundColor: theme.tint,
-                            marginRight: 8,
-                        },
-                    ]}
-                >
-                    {isChaine ? (
-                        <Text style={styles.hashtag}>#</Text>
-                    ) : isGroup ? (
-                        <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.hashtag}>
-                            {(channel.name || channel.email).charAt(0).toUpperCase()}
-                        </Text>
-                    )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={handlePress} style={styles.contactItem}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={[
+                            styles.iconContainer,
+                            {
+                                borderRadius: isChaine ? 5 : 15,
+                                backgroundColor: theme.tint,
+                                marginRight: 8,
+                            },
+                        ]}
+                    >
+                        {isChaine ? (
+                            <Text style={styles.hashtag}>#</Text>
+                        ) : isGroup ? (
+                            <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.hashtag}>
+                                {(channel.name || channel.email).charAt(0).toUpperCase()}
+                            </Text>
+                        )}
+                    </View>
+                    <ThemedText style={styles.email}>{channel.name}</ThemedText>
                 </View>
-                <ThemedText style={styles.email}>{channel.name}</ThemedText>
-            </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+        </View>
     );
+
 }
 
 const styles = StyleSheet.create({

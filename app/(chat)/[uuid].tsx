@@ -1,3 +1,5 @@
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -5,10 +7,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -44,15 +43,6 @@ interface Message {
     date: string;
 }
 
-interface PollResponse {
-    jsonrpc: string;
-    id: number | null;
-    result: Array<{
-        channel: ['mail.channel', number];
-        message: Message;
-    }>;
-}
-
 interface ChatMessage {
     id: number;
     text: string;
@@ -66,7 +56,7 @@ export default function ChatScreen() {
         conversation_type: 'chat' | 'channel' | 'group';
         email: string;
         channel_id: string;
-        name: string
+        name: string;
     }>();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -76,14 +66,11 @@ export default function ChatScreen() {
     const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
     const [showScrollToEnd, setShowScrollToEnd] = useState(false);
-    const [hasScrolledInitially, setHasScrolledInitially] = useState(false);
-    const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone); // Alternative
-
+    const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
     const getPartnerId = async (): Promise<number | null> => {
-
         try {
             const userData = await AsyncStorage.getItem('user');
             if (!userData) {
@@ -161,27 +148,16 @@ export default function ChatScreen() {
             setError('Failed to load messages');
             console.error('Erreur lors du chargement des messages:', err);
         }
-        finally {
-        }
     };
-
-    useFocusEffect(
-        React.useCallback(() => {
-            fetchMessages();
-        }, [fetchMessages])
-    );
 
     useEffect(() => {
         let isMounted = true;
+
         const load = async () => {
-            setHasScrolledInitially(true);
             setIsLoading(true);
             await fetchMessages();
             if (isMounted) {
                 setIsLoading(false);
-                setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                }, 100);
             }
         };
 
@@ -192,28 +168,23 @@ export default function ChatScreen() {
         };
     }, [uuid]);
 
-    const updateTimezone = () => {
-        const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (newTimezone !== userTimezone) {
-            setUserTimezone(newTimezone);
-            console.log('Mise à jour du fuseau horaire:', newTimezone);
+    useEffect(() => {
+        if (!isLoading && messages.length > 0) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
         }
-    };
-
-    const updateTimezoneAndTime = () => {
-        const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (newTimezone !== userTimezone) {
-            setUserTimezone(newTimezone);
-        }
-        const systemTime = new Date();
-        const now = dayjs.tz(systemTime, userTimezone);
-    };
+    }, [messages, isLoading]);
 
     useEffect(() => {
-        updateTimezone();
-    }, []);
+        const updateTimezoneAndTime = () => {
+            const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (newTimezone !== userTimezone) {
+                setUserTimezone(newTimezone);
+                console.log('Mise à jour du fuseau horaire:', newTimezone);
+            }
+        };
 
-    useEffect(() => {
         updateTimezoneAndTime();
         const interval = setInterval(updateTimezoneAndTime, 60000);
         return () => clearInterval(interval);
@@ -235,6 +206,18 @@ export default function ChatScreen() {
                 return;
             }
 
+            const newMsg: ChatMessage = {
+                id: Date.now(),
+                text: newMessage,
+                time: new Date().toISOString(),
+                isMine: true,
+            };
+            setMessages((prev) => [...prev, newMsg]);
+            setNewMessage('');
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+
             const response = await axios.post(
                 `${CONFIG.SERVER_URL}/mail/chat_post`,
                 {
@@ -254,9 +237,8 @@ export default function ChatScreen() {
             );
 
             console.log('Message envoyé - Réponse API:', response.data);
-            setNewMessage('');
-            flatListRef.current?.scrollToEnd({ animated: true });
             Keyboard.dismiss();
+            await fetchMessages();
         } catch (err) {
             setError('Failed to send message');
             console.error('Erreur lors de l\'envoi du message:', err);
@@ -265,11 +247,9 @@ export default function ChatScreen() {
 
     function renderItemWithDateSeparator({ item, index }: { item: ChatMessage; index: number }) {
         const previous = messages[index - 1];
-        // Traiter item.time comme une heure locale GMT+3, puis ajuster avec le fuseau utilisateur
         const currentDate = dayjs.utc(item.time).tz(userTimezone);
         const previousDate = previous ? dayjs.utc(previous.time).tz(userTimezone) : null;
         const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
-        // Utiliser dayjs() pour l'heure locale, puis appliquer le fuseau
         const systemTime = new Date().getTime();
         const today = dayjs.tz(systemTime, userTimezone);
 
@@ -343,18 +323,23 @@ export default function ChatScreen() {
                             data={messages}
                             keyExtractor={(item) => item.id.toString()}
                             renderItem={renderItemWithDateSeparator}
-                            contentContainerStyle={styles.messageList}
+                            contentContainerStyle={[styles.messageList, messages.length === 0 && { flex: 1 }]}
                             keyboardShouldPersistTaps="handled"
                             onScroll={(event) => {
                                 const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
                                 const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
                                 const isAtBottom =
                                     isContentSmallerThanScreen ||
-                                    layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+                                    layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
 
                                 setShowScrollToEnd(!isAtBottom);
                             }}
                             scrollEventThrottle={100}
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Text style={styles.emptyText}>Aucun message</Text>
+                                </View>
+                            }
                         />
                     )}
                     <View style={[styles.inputContainer, { backgroundColor: theme.tint }]}>
@@ -399,7 +384,6 @@ export default function ChatScreen() {
                         <Ionicons name="arrow-down" size={28} color="#fff" />
                     </TouchableOpacity>
                 )}
-
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -450,12 +434,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#000',
-    },
-    headerActions: {
-        flexDirection: 'row',
-    },
-    headerIcon: {
-        marginLeft: 15,
     },
     messageList: {
         flexGrow: 1,
@@ -520,11 +498,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         margin: 10,
     },
-    loading: {
-        textAlign: 'center',
-        margin: 10,
-        color: '#888',
-    },
     dateSeparator: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -565,5 +538,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#888',
+    },
 });

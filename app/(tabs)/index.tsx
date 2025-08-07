@@ -11,7 +11,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface ChatData {
-  name: string | undefined;
+  name: string;
   conversation_type: 'channel' | 'chat' | 'group';
   email: string;
   text: string;

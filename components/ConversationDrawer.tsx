@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import useHomeChatData from '@/hooks/useHomeChatData';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -7,7 +8,7 @@ import { ConversationDrawerListItem } from './ConversationDrawerListItem';
 
 // Define the type for a conversation item (based on ChatData from useHomeChatData)
 interface Conversation {
-    name: string | undefined;
+    name: string;
     conversation_type: 'channel' | 'chat' | 'group';
     email: string;
     text: string;
@@ -39,6 +40,8 @@ const ConversationDrawer = ({ isOpen, onClose, conversations }: ConversationDraw
     const randomBgColor = React.useMemo(() => getRandomColor(), []);
     const colorScheme = useColorScheme();
 
+    const { handleConversationPressWithAllParameter } = useHomeChatData();
+
     useEffect(() => {
         if (isOpen) {
             Animated.timing(slideAnim, {
@@ -63,21 +66,11 @@ const ConversationDrawer = ({ isOpen, onClose, conversations }: ConversationDraw
     const allChannels = conversations?.filter(c => c.conversation_type === 'channel' || c.conversation_type === 'group') || [];
     const users = conversations?.filter(c => c.conversation_type === 'chat') || [];
 
-    // Filter recent channels (last 3 based on time)
-    const recentChannels = allChannels
-        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()) // Sort by most recent
-        .slice(0, 3); // Take the 3 most recent
-
-    // Filter all channels and users based on search query
-    const filteredRecentChannels = recentChannels.filter(item =>
-        item.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
     const filteredUsers = users.filter(item =>
         (item.name || item.email)?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const theme = Colors[colorScheme ?? 'light'] || Colors.light;
-    // Ne rendre le drawer que si isOpen est true
     if (!isOpen) return null;
 
 
@@ -112,7 +105,7 @@ const ConversationDrawer = ({ isOpen, onClose, conversations }: ConversationDraw
                     <TouchableOpacity style={[styles.createButton, { backgroundColor: theme.tabIconSelected }]} onPress={() => console.log('Créer un canal')}>
                         <Text style={styles.buttonText}>Créer un canal</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.createButton, { backgroundColor: theme.tabIconSelected  }]} onPress={() => console.log('Créer un chat')}>
+                    <TouchableOpacity style={[styles.createButton, { backgroundColor: theme.tabIconSelected }]} onPress={() => console.log('Créer un chat')}>
                         <Text style={styles.buttonText}>Créer un chat</Text>
                     </TouchableOpacity>
                 </View>
@@ -124,6 +117,7 @@ const ConversationDrawer = ({ isOpen, onClose, conversations }: ConversationDraw
                                 key={channel.uuid}
                                 channel={channel}
                                 theme={theme}
+                                onConversationPress={handleConversationPressWithAllParameter}
                             />
                         ))
                     ) : (
@@ -138,6 +132,7 @@ const ConversationDrawer = ({ isOpen, onClose, conversations }: ConversationDraw
                                 key={index}
                                 channel={user}
                                 theme={theme}
+                                onConversationPress={handleConversationPressWithAllParameter}
                             />
                         ))
                     ) : (
