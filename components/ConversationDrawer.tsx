@@ -9,7 +9,7 @@ import { ConversationDrawerListItem } from './ConversationDrawerListItem';
 // Define the type for a conversation item (based on ChatData from useHomeChatData)
 interface Conversation {
     name: string;
-    conversation_type: 'channel' | 'chat' | 'group';
+    conversation_type: 'channel' | 'chat' | 'group' | 'notification';
     email: string;
     text: string;
     time: string;

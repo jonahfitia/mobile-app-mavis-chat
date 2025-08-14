@@ -15,12 +15,12 @@ dayjs.extend(timezone);
 dayjs.locale('fr');
 
 type ChatItemProps = {
-  conversation_type: string;
+  conversation_type: 'channel' | 'chat' | 'group' | 'notification';
   email: string;
   text: string;
-  uuid: string
+  uuid: string;
   time: string;
-  channelId: number;
+  channelId?: number | null;
   unreadCount: number;
   name?: string;
 };
@@ -34,77 +34,72 @@ function getRandomColor() {
   return color;
 }
 
-export function ChatItem({ conversation_type, email, text, time, unreadCount, name }: ChatItemProps) {
+export function ChatItem({
+  conversation_type,
+  email,
+  text,
+  time,
+  unreadCount,
+  name,
+}: ChatItemProps) {
   const isToday = dayjs(time).tz('Africa/Nairobi').isSame(dayjs().tz('Africa/Nairobi'), 'day');
   const colorScheme = useColorScheme();
   const formattedTime = isToday
     ? dayjs(time).format('HH:mm')
     : dayjs(time).locale('fr').format('D MMM');
-  const isChaine = conversation_type === 'channel';
+
+  const isChannel = conversation_type === 'channel';
   const isGroup = conversation_type === 'group';
+  const isNotification = conversation_type === 'notification';
   const randomBgColor = React.useMemo(() => getRandomColor(), []);
   const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
   return (
-    <ThemedView style={[
-      styles.container,
-      {
-        borderWidth: 0.1,
-        borderColor: theme.background,
-        backgroundColor: theme.background,
-      }
-    ]}>
+    <ThemedView
+      style={[
+        styles.container,
+        { borderWidth: 0.1, borderColor: theme.background, backgroundColor: theme.background },
+      ]}
+    >
       <View
         style={[
           styles.iconContainer,
-          {
-            borderRadius: isChaine ? 5 : 15,
-            backgroundColor: randomBgColor
-          },
+          { borderRadius: isChannel ? 5 : 15, backgroundColor: isNotification ? theme.tabIconSelected : randomBgColor },
         ]}
       >
-        {isChaine ? (
+        {isNotification ? (
+          <IconSymbol name="bell.fill" size={20} color="#FFFFFF" />
+        ) : isChannel ? (
           <Text style={styles.hashtag}>#</Text>
         ) : isGroup ? (
           <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
         ) : (
-          <Text style={styles.hashtag}>
-            {(name || email).charAt(0).toUpperCase()}
-          </Text>
+          <Text style={styles.hashtag}>{(name || email).charAt(0).toUpperCase()}</Text>
         )}
       </View>
 
       <ThemedView style={styles.content}>
-        <ThemedText style={styles.email}>{name}</ThemedText>
+        <ThemedText style={styles.email}>{name || (isNotification ? text : email)}</ThemedText>
         <ThemedText
           numberOfLines={1}
           ellipsizeMode="tail"
-          style={[
-            styles.message,
-            unreadCount > 0 && { fontWeight: 'bold' }
-          ]}
+          style={[styles.message, unreadCount > 0 && { fontWeight: 'bold' }]}
         >
           {text}
         </ThemedText>
       </ThemedView>
+
       <View style={{ alignItems: 'center', justifyContent: 'space-between', minHeight: 38 }}>
         {unreadCount > 0 && (
           <View style={[styles.badge, { position: 'relative', top: 0, right: 0, marginBottom: 2 }]}>
             <Text style={styles.badgeText}>{unreadCount > 15 ? '15+' : unreadCount}</Text>
           </View>
         )}
-        {unreadCount === 0 && (
-          <View>
-            <Text>{''}</Text>
-          </View>
-        )}
         <View style={[{ position: 'relative', top: 0, right: 0, marginBottom: 2 }]}>
-          <ThemedText style={styles.timeText}>
-            {String(formattedTime)}
-          </ThemedText>
+          <ThemedText style={styles.timeText}>{String(formattedTime)}</ThemedText>
         </View>
       </View>
-    </ThemedView >
+    </ThemedView>
   );
 }
 
@@ -117,7 +112,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   iconContainer: {
-    backgroundColor: '#6B46C1',
     width: 30,
     height: 30,
     justifyContent: 'center',

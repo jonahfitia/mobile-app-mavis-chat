@@ -4,24 +4,29 @@ import { FlatList, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { ChatItem } from './ChatItem';
 
 interface ChatData {
-  name: string | undefined;
-  conversation_type: 'channel' | 'chat' | 'group';
+  uuid: string;
+  name?: string; // facultatif si non défini
+  conversation_type: 'channel' | 'chat' | 'group' | 'notification';
   email: string;
   text: string;
   time: string;
-  uuid: string;
-  channelId: number;
+  channelId?: number | null; // peut être null pour notifications
   unreadCount: number;
+  target?: {         // facultatif, seulement pour notifications
+    model: string;
+    res_id: number;
+  };
 }
 
 interface Props {
   chatData: ChatData[];
-  error: string;
-  filterType: 'chat' | 'channel' | 'group' | null;
-  onConversationPress: (uuid: string, channelId: number) => void;
+  error?: string;
+  filterType?: 'chat' | 'channel' | 'group' | 'notification' | null;
+  onConversationPress: (uuid: string, channelId?: number | null, conversation_type?: string) => void;
 }
 
 export function ConversationList({ chatData, error, filterType, onConversationPress }: Props) {
+  // export function ConversationList({ chatData, error, filterType }: Props) {
   const filteredData = filterType
     ? chatData.filter(item => item.conversation_type === filterType)
     : chatData;
@@ -33,7 +38,12 @@ export function ConversationList({ chatData, error, filterType, onConversationPr
         data={filteredData}
         keyExtractor={item => item.uuid}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => onConversationPress(item.uuid, item.channelId)}>
+          <TouchableOpacity
+            onPress={() => {
+              // si channelId existe, on le passe, sinon undefined
+              onConversationPress(item.uuid, item.channelId ?? undefined, item.conversation_type);
+            }}
+          >
             <ChatItem
               name={item.name}
               conversation_type={item.conversation_type}

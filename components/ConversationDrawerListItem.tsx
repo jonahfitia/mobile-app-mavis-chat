@@ -35,7 +35,7 @@ dayjs.locale('fr');
 type ConversationDrawerListItemProps = {
     channel: {
         name: string;
-        conversation_type: 'channel' | 'chat' | 'group';
+        conversation_type: 'channel' | 'chat' | 'group' | 'notification';
         email: string;
         text: string;
         time: string;

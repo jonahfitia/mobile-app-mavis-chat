@@ -15,13 +15,13 @@ import {
     Keyboard,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CONFIG } from '../../config';
 
 dayjs.extend(utc);
@@ -293,7 +293,7 @@ export default function ChatScreen() {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
             <KeyboardAvoidingView
                 style={{ flex: 1, backgroundColor: theme.background }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -396,7 +396,6 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? 40 : 20,
         paddingHorizontal: 15,
         paddingBottom: 5,
-        marginTop: 15,
         backgroundColor: '#fff',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },

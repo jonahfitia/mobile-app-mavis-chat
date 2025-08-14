@@ -12,7 +12,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 interface ChatData {
   name: string;
-  conversation_type: 'channel' | 'chat' | 'group';
+  conversation_type: 'channel' | 'chat' | 'group' | 'notification';
   email: string;
   text: string;
   time: string;
