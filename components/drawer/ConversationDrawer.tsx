@@ -1,28 +1,18 @@
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import useHomeChatData from '@/hooks/useHomeChatData';
+import { ChatData } from '@/types/chat/chatData';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ConversationDrawerListItem } from './ConversationDrawerListItem';
 
 // Define the type for a conversation item (based on ChatData from useHomeChatData)
-interface Conversation {
-    name: string;
-    conversation_type: 'channel' | 'chat' | 'group' | 'notification';
-    email: string;
-    text: string;
-    time: string;
-    uuid: string;
-    channelId: number;
-    unreadCount: number;
-}
-
 // Define the props interface for ConversationDrawer
 interface ConversationDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    conversations?: Conversation[];
+    conversations?: ChatData[];
 }
 
 function getRandomColor() {

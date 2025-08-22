@@ -1,6 +1,6 @@
 // app/(tabs)/index.tsx
-import ConversationDrawer from '@/components/ConversationDrawer';
 import { ConversationList } from '@/components/ConversationList';
+import ConversationDrawer from '@/components/drawer/ConversationDrawer';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -9,17 +9,6 @@ import useHomeChatData from '@/hooks/useHomeChatData';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-
-interface ChatData {
-  name: string;
-  conversation_type: 'channel' | 'chat' | 'group' | 'notification';
-  email: string;
-  text: string;
-  time: string;
-  uuid: string;
-  channelId: number;
-  unreadCount: number;
-}
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();

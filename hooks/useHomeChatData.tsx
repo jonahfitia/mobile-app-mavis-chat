@@ -1,39 +1,12 @@
 // hooks/useHomeChatData.tsx
 import { CONFIG } from '@/config';
+import { ChatData } from '@/types/chat/chatData';
+import { Message } from '@/types/chat/message';
+import { UserInfo } from '@/types/chat/userInfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-
-interface UserInfo {
-    uid: number;
-    name: string;
-    session_id: string;
-    context: Record<string, any>;
-}
-
-interface Message {
-    result: any;
-    id: number;
-    body: string;
-    author_id: [number, string];
-    date: string;
-}
-
-export interface ChatData {
-    name: string;
-    conversation_type: 'channel' | 'chat' | 'group' | 'notification';
-    email: string;
-    text: string;
-    time: string;
-    uuid: string;
-    channelId: number;
-    unreadCount: number;
-    target?: {
-        model: string;
-        res_id: number;
-    };
-}
 
 export default function useHomeChatData() {
     const [chatData, setChatData] = useState<ChatData[]>([]);
@@ -114,9 +87,10 @@ export default function useHomeChatData() {
                 name: channel.name,
                 conversation_type: channel.conversation_type,
                 email: channel.email,
-                text: channel.text.replace(/<[^>]+>/g, ''),
+                text: channel.text,
+                // text: channel.conversation_type == 'notification' ? channel.text : channel.text.replace(/<[^>]+>/g, ''),
                 time: channel.time,
-                channelId: channel.channelId ?? 0, // ou null selon ton interface
+                channelId: channel.channelId ?? 0,
                 unreadCount: channel.unreadCount ?? 0,
                 target: channel.target,
             }));
@@ -130,48 +104,73 @@ export default function useHomeChatData() {
 
     const updateChannelUnreadCount = useCallback(async (channelId: number, uuid: string) => {
         try {
-            const historyResponse = await axios.post<{ result: Message[] }>(
-                `${CONFIG.SERVER_URL}/mail/chat_history`,
-                {
-                    jsonrpc: '2.0',
-                    method: 'call',
-                    params: { uuid, limit: 20 },
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Cookie: `session_id=${sessionId}`,
-                    },
-                }
-            );
+            let unreadCount = 0;
+            let lastMessage: Message | null = null;
 
-            const unreadResponse = await axios.post<{ result: { uuid: string; unread_count: number }[] }>(
-                `${CONFIG.SERVER_URL}/mail/count_messaging_unread`,
-                { jsonrpc: '2.0', method: 'call', params: {} },
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+            // Vérifier si c'est un groupe de notifications
+            const isGroupNotification = uuid.startsWith('group_');
 
-            const unreadCount = unreadResponse.data.result.find((c) => c.uuid === uuid)?.unread_count ?? 0;
-            const lastMessage = historyResponse.data.result[0] || {};
-            const email = chatData.find((c) => c.uuid === uuid)?.email || 'Unknown';
-            const cleanText = lastMessage.body ? lastMessage.body.replace(/<[^>]+>/g, '') : 'No messages';
+            if (isGroupNotification) {
+                // Pour les notifications, récupérer le nombre de messages non lus depuis /mail/discussions/all
+                const response = await axios.post<{ result: ChatData[] }>(
+                    `${CONFIG.SERVER_URL}/mail/discussions/all`,
+                    {
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: { limit: 1 },
+                    },
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                    }
+                );
+
+                const groupData = response.data.result.find((item) => item.uuid === uuid);
+                if (groupData) {
+                    unreadCount = groupData.unreadCount;
+                    lastMessage = {
+                        body: groupData.text,
+                        date: groupData.time,
+                        author_id: [0, 'System'],
+                    } as Message;
+                }
+            } else {
+                // Pour les canaux/chat classiques
+                const historyResponse = await axios.post<{ result: Message[] }>(
+                    `${CONFIG.SERVER_URL}/mail/chat_history`,
+                    {
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: { uuid, limit: 20 },
+                    },
+                    { headers: { 'Content-Type': 'application/json' } }
+                );
+
+                lastMessage = historyResponse.data.result[0] || null;
+
+                const unreadResponse = await axios.post<{ result: { uuid: string; unread_count: number }[] }>(
+                    `${CONFIG.SERVER_URL}/mail/count_messaging_unread`,
+                    { jsonrpc: '2.0', method: 'call', params: {} },
+                    { headers: { 'Content-Type': 'application/json' } }
+                );
+
+                unreadCount = unreadResponse.data.result.find((c) => c.uuid === uuid)?.unread_count ?? 0;
+            }
+
+            if (!lastMessage) return;
+
+            const cleanText = lastMessage.body ? lastMessage.body : 'No messages';
             const lastAuthor = lastMessage.author_id?.[1] || 'Unknown';
             const isMine = lastMessage.author_id?.[0] === partnerId;
 
-            let displayText = cleanText;
-            if (chatData.find((c) => c.uuid === uuid)?.conversation_type !== 'chat') {
-                displayText = isMine ? `⤻ Vous : ${cleanText}` : `⤻ ${lastAuthor} : ${cleanText}`;
-            } else if (isMine) {
-                displayText = `⤻ Vous : ${cleanText}`;
-            }
+            const displayText = isGroupNotification
+                ? cleanText
+                : chatData.find((c) => c.uuid === uuid)?.conversation_type !== 'chat'
+                    ? isMine ? `⤻ Vous : ${cleanText}` : `⤻ ${lastAuthor} : ${cleanText}`
+                    : isMine ? `⤻ Vous : ${cleanText}` : cleanText;
 
-            const updatedChannel: ChatData = {
+            const updatedItem: ChatData = {
                 conversation_type: chatData.find((c) => c.uuid === uuid)?.conversation_type || 'channel',
-                email,
+                email: chatData.find((c) => c.uuid === uuid)?.email || '',
                 text: displayText,
                 time: lastMessage.date || '1970-01-01T00:00:00',
                 uuid,
@@ -181,14 +180,76 @@ export default function useHomeChatData() {
             };
 
             setChatData((prev) =>
-                prev
-                    .map((item) => (item.channelId === channelId ? updatedChannel : item))
+                prev.map((item) => (item.uuid === uuid ? updatedItem : item))
                     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
             );
+
         } catch (err) {
-            console.error(`Erreur lors de la mise à jour du canal ${channelId}:`, err);
+            console.error(`Erreur lors de la mise à jour de ${uuid}:`, err);
         }
-    }, [userId, sessionId, partnerId, chatData]);
+    }, [partnerId, chatData]);
+
+    // const updateChannelUnreadCount = useCallback(async (channelId: number, uuid: string) => {
+    //     try {
+    //         const historyResponse = await axios.post<{ result: Message[] }>(
+    //             `${CONFIG.SERVER_URL}/mail/chat_history`,
+    //             {
+    //                 jsonrpc: '2.0',
+    //                 method: 'call',
+    //                 params: { uuid, limit: 20 },
+    //             },
+    //             {
+    //                 headers: {
+    //                     'Content-Type': 'application/json',
+    //                     Cookie: `session_id=${sessionId}`,
+    //                 },
+    //             }
+    //         );
+
+    //         const unreadResponse = await axios.post<{ result: { uuid: string; unread_count: number }[] }>(
+    //             `${CONFIG.SERVER_URL}/mail/count_messaging_unread`,
+    //             { jsonrpc: '2.0', method: 'call', params: {} },
+    //             {
+    //                 headers: {
+    //                     'Content-Type': 'application/json',
+    //                 },
+    //             }
+    //         );
+
+    //         const unreadCount = unreadResponse.data.result.find((c) => c.uuid === uuid)?.unread_count ?? 0;
+    //         const lastMessage = historyResponse.data.result[0] || {};
+    //         const email = chatData.find((c) => c.uuid === uuid)?.email || 'Unknown';
+    //         const cleanText = lastMessage.body ? lastMessage.body : 'No messages';
+    //         const lastAuthor = lastMessage.author_id?.[1] || 'Unknown';
+    //         const isMine = lastMessage.author_id?.[0] === partnerId;
+
+    //         let displayText = cleanText;
+    //         if (chatData.find((c) => c.uuid === uuid)?.conversation_type !== 'chat') {
+    //             displayText = isMine ? `⤻ Vous : ${cleanText}` : `⤻ ${lastAuthor} : ${cleanText}`;
+    //         } else if (isMine) {
+    //             displayText = `⤻ Vous : ${cleanText}`;
+    //         }
+
+    //         const updatedChannel: ChatData = {
+    //             conversation_type: chatData.find((c) => c.uuid === uuid)?.conversation_type || 'channel',
+    //             email,
+    //             text: displayText,
+    //             time: lastMessage.date || '1970-01-01T00:00:00',
+    //             uuid,
+    //             name: chatData.find((c) => c.uuid === uuid)?.name || 'Unknown',
+    //             channelId,
+    //             unreadCount,
+    //         };
+
+    //         setChatData((prev) =>
+    //             prev
+    //                 .map((item) => (item.channelId === channelId ? updatedChannel : item))
+    //                 .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    //         );
+    //     } catch (err) {
+    //         console.error(`Erreur lors de la mise à jour du canal ${channelId}:`, err);
+    //     }
+    // }, [userId, sessionId, partnerId, chatData]);
 
     // Long polling pour les mises à jour en temps réel
     // useEffect(() => {
@@ -243,15 +304,29 @@ export default function useHomeChatData() {
     //     };
     // }, [userId, sessionId, chatData, updateChannelUnreadCount]);
 
-    const handleConversationPress = async (uuid: string, channelId?: number | null, conversation_type?: string) => {
-        if (conversation_type != 'notification') {
-            try {
-                const historyResponse = await axios.post<{ result: Message[] }>(
-                    `${CONFIG.SERVER_URL}/mail/chat_history`,
+    const handleConversationPress = async (uuid: string, channelId: number, conversation_type?: string) => {
+        try {
+            const historyResponse = await axios.post<{ result: Message[] }>(
+                `${CONFIG.SERVER_URL}/mail/chat_history`,
+                {
+                    jsonrpc: '2.0',
+                    method: 'call',
+                    params: { uuid, limit: 1 },
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            const lastMessageId = historyResponse.data.result[0]?.id;
+            if (lastMessageId) {
+                await axios.post(
+                    `${CONFIG.SERVER_URL}/mail/channel/seen`,
                     {
                         jsonrpc: '2.0',
                         method: 'call',
-                        params: { uuid, limit: 1 },
+                        params: { channel_id: channelId, last_message_id: lastMessageId },
                     },
                     {
                         headers: {
@@ -259,40 +334,24 @@ export default function useHomeChatData() {
                         },
                     }
                 );
-                const lastMessageId = historyResponse.data.result[0]?.id;
-                if (lastMessageId) {
-                    await axios.post(
-                        `${CONFIG.SERVER_URL}/mail/channel/seen`,
-                        {
-                            jsonrpc: '2.0',
-                            method: 'call',
-                            params: { channel_id: channelId, last_message_id: lastMessageId },
-                        },
-                        {
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                        }
-                    );
-                    await updateChannelUnreadCount(channelId, uuid);
-                }
-
-                router.push({
-                    pathname: '/(chat)/[uuid]',
-                    params: {
-                        uuid,
-                        channelId: channelId?.toString(),
-                        conversation_type: chatData.find(item => item.uuid === uuid)?.conversation_type,
-                        email: chatData.find(item => item.uuid === uuid)?.email || '',
-                        userId: userId?.toString() || '',
-                        session_id: sessionId || '',
-                        name: chatData.find(item => item.uuid === uuid)?.name,
-                    },
-                });
-            } catch (error) {
-                console.error('Erreur lors de l’ouverture du canal:', error);
-                setError('Failed to open conversation');
+                await updateChannelUnreadCount(channelId, uuid);
             }
+
+            router.push({
+                pathname: '/(chat)/[uuid]',
+                params: {
+                    uuid,
+                    channelId: channelId?.toString(),
+                    conversation_type: chatData.find(item => item.uuid === uuid)?.conversation_type,
+                    email: chatData.find(item => item.uuid === uuid)?.email || '',
+                    userId: userId?.toString() || '',
+                    session_id: sessionId || '',
+                    name: chatData.find(item => item.uuid === uuid)?.name,
+                },
+            });
+        } catch (error) {
+            console.error('Erreur lors de l’ouverture du canal:', error);
+            setError('Failed to open conversation');
         }
     };
 
@@ -334,7 +393,6 @@ export default function useHomeChatData() {
                 );
                 await updateChannelUnreadCount(channelId, uuid);
             }
-
             router.push({
                 pathname: '/(chat)/[uuid]',
                 params: {

@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ConversationType } from '@/types/chat/chatData';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import timezone from 'dayjs/plugin/timezone';
@@ -32,10 +33,10 @@ dayjs.locale('fr');
 //         renderItem={({ item }) => (
 //           <TouchableOpacity onPress={() => onConversationPress(item.uuid, item.channelId)}>
 
-type ConversationDrawerListItemProps = {
+interface ConversationDrawerListItemProps {
     channel: {
         name: string;
-        conversation_type: 'channel' | 'chat' | 'group' | 'notification';
+        conversation_type: ConversationType;
         email: string;
         text: string;
         time: string;
@@ -86,7 +87,7 @@ export function ConversationDrawerListItem({ channel, theme, onConversationPress
                             <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
                         ) : (
                             <Text style={styles.hashtag}>
-                                {(channel.name || channel.email).charAt(0).toUpperCase()}
+                                {(channel.name || channel.email)?.charAt(0).toUpperCase()}
                             </Text>
                         )}
                     </View>

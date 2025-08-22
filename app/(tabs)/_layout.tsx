@@ -1,33 +1,20 @@
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
-import { Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, Text } from 'react-native';
-
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
+import { useUser } from "@/contexts/UserContext";
 import { useColorScheme } from '@/hooks/useColorScheme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import { useNavigation } from '@react-navigation/native';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Platform, Pressable, Text } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const navigation = useNavigation<DrawerNavigationProp<any>>();
-  const [user_name, setUsername] = useState('');
   const totalUnread = 2;
-  
-  useEffect(() => {
-    getUser();
-  }, []);
-
-  const getUser = async () => {
-    const userData = await AsyncStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      setUsername(user.name);
-    }
-  };
+  const { userData, setUserData } = useUser();
 
   return (
     <Tabs
@@ -46,7 +33,7 @@ export default function TabLayout() {
           default: {},
         }),
         headerTitle: () => (
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme ?? 'light'].tabIconDefault }}>Hello {user_name}</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme ?? 'light'].tabIconDefault }}>Hello {userData?.name}</Text>
         ),
         headerRight: () => (
           <Pressable

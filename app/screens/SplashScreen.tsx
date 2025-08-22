@@ -9,6 +9,7 @@ const SplashScreen = () => {
   const animatedProgress = useRef(new Animated.Value(0)).current; // Animated.Value for animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const router = useRouter();
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
     // Animation de fondu du texte
@@ -42,6 +43,8 @@ const SplashScreen = () => {
   }, []);
 
   const checkAuthAndNavigate = async () => {
+    if (hasNavigated.current) return;
+    hasNavigated.current = true;
     try {
       const userData = await AsyncStorage.getItem('user');
       const lastSession = await AsyncStorage.getItem('lastSession');
@@ -54,13 +57,13 @@ const SplashScreen = () => {
         const lastTime = new Date(timestamp);
         const diffMinutes = (now.getTime() - lastTime.getTime()) / (1000 * 60);
         if (diffMinutes < 30) {
-          router.replace('/(tabs)'); // Connecté
+          router.replace('/(tabs)');
         } else {
           await AsyncStorage.removeItem('lastSession');
-          router.replace('/(login)'); // Déconnecté après 30 min
+          router.replace('/(login)');
         }
       } else {
-        router.replace('/(login)'); // Pas de données utilisateur
+        router.replace('/(login)');
       }
     } catch (error) {
       console.error('Erreur dans checkAuthAndNavigate:', error);

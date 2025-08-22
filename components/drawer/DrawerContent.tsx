@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/Colors";
+import { useUser } from "@/contexts/UserContext";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
@@ -6,26 +7,54 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Image, StyleSheet, Switch, Text, useColorScheme, View } from "react-native";
 
-type Props = {
+interface DrawerContentProps {
     isDarkMode: boolean;
     toggleDarkMode: () => void;
 };
 
-export default function DrawerContent(props: any & Props) {
+export default function DrawerContent(props: any & DrawerContentProps) {
     const colorScheme = useColorScheme();
     const { isDarkMode, toggleDarkMode } = props;
     const router = useRouter();
     const [user_name, setUsername] = useState<string>('');
     const [mail, setMail] = useState<string>('');
+    const { userData, logout } = useUser();
 
     useEffect(() => {
         getUser();
     }, []);
 
+    const handleLogoutOrSwitchAccount = async () => {
+        Alert.alert(
+            'Change Account',
+            'You want to logout or just change account ?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    onPress: async () => {
+                        await logout();
+                        await AsyncStorage.clear();
+                        router.replace('/(login)');
+                    },
+                    style: 'destructive',
+                },
+                {
+                    text: 'Change account',
+                    onPress: async () => {
+                        await logout();
+                        await AsyncStorage.removeItem('user');
+                        await AsyncStorage.removeItem('lastSession');
+                        router.replace('/(login)');
+                    },
+                },
+            ]
+        );
+    };
+
     const getUser = async () => {
         try {
             const userData = await AsyncStorage.getItem('user');
-            console.log("------------------- user Data ", userData);
             if (userData) {
                 const user = JSON.parse(userData);
                 setUsername(user.name);
@@ -41,33 +70,6 @@ export default function DrawerContent(props: any & Props) {
         }
     };
 
-    const handleLogoutOrSwitchAccount = async () => {
-        Alert.alert(
-            'Changer de compte',
-            'Voulez-vous vous déconnecter ou changer de compte ?',
-            [
-                { text: 'Annuler', style: 'cancel' },
-                {
-                    text: 'Déconnexion',
-                    onPress: async () => {
-                        await AsyncStorage.removeItem('user');
-                        await AsyncStorage.removeItem('lastSession');
-                        router.replace('/(login)');
-                    },
-                    style: 'destructive',
-                },
-                {
-                    text: 'Changer de compte',
-                    onPress: async () => {
-                        await AsyncStorage.removeItem('user');
-                        await AsyncStorage.removeItem('lastSession');
-                        router.replace('/(login)');
-                    },
-                },
-            ]
-        );
-    };
-
     const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
     return (
@@ -77,7 +79,7 @@ export default function DrawerContent(props: any & Props) {
         >
             <View style={[styles.drawerHeader, { backgroundColor: theme.tint }]}>
                 <Image
-                    source={require('../assets/images/splash-icon.png')}
+                    source={require('../../assets/images/splash-icon.png')}
                     style={styles.profileImage}
                 />
                 <View style={styles.profileInfo}>

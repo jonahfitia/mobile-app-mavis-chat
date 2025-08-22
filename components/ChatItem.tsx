@@ -3,19 +3,22 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ConversationType } from '@/types/chat/chatData';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+
+const { width } = useWindowDimensions();
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale('fr');
 
-type ChatItemProps = {
-  conversation_type: 'channel' | 'chat' | 'group' | 'notification';
+interface ChatItemProps {
+  conversation_type: ConversationType;
   email: string;
   text: string;
   uuid: string;
@@ -74,7 +77,7 @@ export function ChatItem({
         ) : isGroup ? (
           <IconSymbol name="person.3.fill" size={20} color="#FFFFFF" />
         ) : (
-          <Text style={styles.hashtag}>{(name || email).charAt(0).toUpperCase()}</Text>
+          <Text style={styles.hashtag}>{(name || email)?.charAt(0).toUpperCase()}</Text>
         )}
       </View>
 
@@ -85,7 +88,7 @@ export function ChatItem({
           ellipsizeMode="tail"
           style={[styles.message, unreadCount > 0 && { fontWeight: 'bold' }]}
         >
-          {text}
+          {text.replace(/<[^>]+>/g, '')}
         </ThemedText>
       </ThemedView>
 

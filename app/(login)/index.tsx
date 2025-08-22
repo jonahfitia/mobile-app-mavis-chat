@@ -1,5 +1,6 @@
 
 import { Colors } from '@/constants/Colors';
+import { useUser } from '@/contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -8,14 +9,15 @@ import { Button, Text, TextInput, Title, useTheme } from 'react-native-paper';
 import { CONFIG } from './../../config';
 
 const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>('jonahrafit@mavis.com');
-  const [password, setPassword] = useState<string>('admin');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [secureText, setSecureText] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const router = useRouter();
   const ColorScheme = useColorScheme();
+  const { setUserData } = useUser();
 
   const handleLogin = async () => {
     setLoading(true);
@@ -29,42 +31,41 @@ const LoginScreen: React.FC = () => {
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
-          method: 'call', // ✅ OBLIGATOIRE
+          method: "call",
           params: {
             db: CONFIG.DATABASE_NAME,
             login: email,
             password: password,
           },
-        }),
+        })
       });
 
       const data = await response.json();
-      const rawSetCookie = response.headers.map['set-cookie'];
-
-      const match = rawSetCookie.match(/session_id=([^;]+)/);
+      const rawSetCookie = response.headers.get('set-cookie');
+      const match = rawSetCookie?.match(/session_id=([^;]+)/);
       const sessionId = match ? match[1] : '';
 
       if (data.error) {
-        Alert.alert('Erreur', data.error.message || 'Échec de l\'authentification');
+        // 🚨 Erreur côté Odoo
+        setError(data.error.message || 'Échec de l\'authentification');
       } else if (data.result && data.result.uid) {
-        if (data.result && data.result.uid) {
-          const userInfo = {
-            uid: data.result.uid,
-            name: data.result.name,
-            session_id: sessionId,
-            context: data.result.user_context,
-            mail: data.result.username,
-          };
-
-          console.log(" user info ", userInfo);
-          await AsyncStorage.setItem('user', JSON.stringify(userInfo));
-          const userData = await AsyncStorage.getItem('user');
-          console.log("User data", userData);
-        }
+        // ✅ Succès : on enregistre l’utilisateur
+        const userInfo = {
+          uid: data.result.uid,
+          name: data.result.name,
+          session_id: sessionId,
+          context: data.result.user_context,
+          mail: data.result.username,
+        };
+        await AsyncStorage.setItem('user', JSON.stringify(userInfo));
+        await AsyncStorage.setItem('lastSession', JSON.stringify({ timestamp: new Date().toISOString() }));
+        setUserData(userInfo);
+        router.replace('/(tabs)');
       } else {
-        Alert.alert('Erreur', 'Identifiants incorrects');
+        // 🚨 Mauvais identifiants
+        setError('Identifiants incorrects');
       }
-      router.replace('/(tabs)' as const);
+
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
       Alert.alert('Erreur', 'Une erreur s\'est produite. Vérifiez votre connexion réseau.');
@@ -95,7 +96,6 @@ const LoginScreen: React.FC = () => {
           style={styles.input}
           error={!!error}
         />
-
         <TextInput
           label="Password"
           value={password}
