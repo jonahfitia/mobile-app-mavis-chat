@@ -189,68 +189,6 @@ export default function useHomeChatData() {
         }
     }, [partnerId, chatData]);
 
-    // const updateChannelUnreadCount = useCallback(async (channelId: number, uuid: string) => {
-    //     try {
-    //         const historyResponse = await axios.post<{ result: Message[] }>(
-    //             `${CONFIG.SERVER_URL}/mail/chat_history`,
-    //             {
-    //                 jsonrpc: '2.0',
-    //                 method: 'call',
-    //                 params: { uuid, limit: 20 },
-    //             },
-    //             {
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                     Cookie: `session_id=${sessionId}`,
-    //                 },
-    //             }
-    //         );
-
-    //         const unreadResponse = await axios.post<{ result: { uuid: string; unread_count: number }[] }>(
-    //             `${CONFIG.SERVER_URL}/mail/count_messaging_unread`,
-    //             { jsonrpc: '2.0', method: 'call', params: {} },
-    //             {
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //             }
-    //         );
-
-    //         const unreadCount = unreadResponse.data.result.find((c) => c.uuid === uuid)?.unread_count ?? 0;
-    //         const lastMessage = historyResponse.data.result[0] || {};
-    //         const email = chatData.find((c) => c.uuid === uuid)?.email || 'Unknown';
-    //         const cleanText = lastMessage.body ? lastMessage.body : 'No messages';
-    //         const lastAuthor = lastMessage.author_id?.[1] || 'Unknown';
-    //         const isMine = lastMessage.author_id?.[0] === partnerId;
-
-    //         let displayText = cleanText;
-    //         if (chatData.find((c) => c.uuid === uuid)?.conversation_type !== 'chat') {
-    //             displayText = isMine ? `⤻ Vous : ${cleanText}` : `⤻ ${lastAuthor} : ${cleanText}`;
-    //         } else if (isMine) {
-    //             displayText = `⤻ Vous : ${cleanText}`;
-    //         }
-
-    //         const updatedChannel: ChatData = {
-    //             conversation_type: chatData.find((c) => c.uuid === uuid)?.conversation_type || 'channel',
-    //             email,
-    //             text: displayText,
-    //             time: lastMessage.date || '1970-01-01T00:00:00',
-    //             uuid,
-    //             name: chatData.find((c) => c.uuid === uuid)?.name || 'Unknown',
-    //             channelId,
-    //             unreadCount,
-    //         };
-
-    //         setChatData((prev) =>
-    //             prev
-    //                 .map((item) => (item.channelId === channelId ? updatedChannel : item))
-    //                 .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    //         );
-    //     } catch (err) {
-    //         console.error(`Erreur lors de la mise à jour du canal ${channelId}:`, err);
-    //     }
-    // }, [userId, sessionId, partnerId, chatData]);
-
     // Long polling pour les mises à jour en temps réel
     // useEffect(() => {
     //     let isMounted = true;
@@ -319,14 +257,22 @@ export default function useHomeChatData() {
                     },
                 }
             );
-            const lastMessageId = historyResponse.data.result[0]?.id;
+            const instance_type = historyResponse.data.result[0];
+            const lastMessageId = instance_type.id;
+            console.log("------------------ UUID : ", uuid,
+                "------------------- Conversation _type ", conversation_type,
+                "--------------- CHANNEL ID : ", channelId);
             if (lastMessageId) {
                 await axios.post(
                     `${CONFIG.SERVER_URL}/mail/channel/seen`,
                     {
                         jsonrpc: '2.0',
                         method: 'call',
-                        params: { channel_id: channelId, last_message_id: lastMessageId },
+                        params: {
+                            channel_id: conversation_type === 'notification' ? null : channelId,
+                            last_message_id: lastMessageId,
+                            uuid: conversation_type === 'notification' ? uuid : null
+                        },
                     },
                     {
                         headers: {
