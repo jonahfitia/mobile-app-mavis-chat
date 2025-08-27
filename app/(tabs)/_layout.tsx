@@ -51,7 +51,7 @@ export default function TabLayout() {
         options={{
           title: 'All',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="envelope.fill" color={color} />,
-          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
+          // tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
           tabBarBadgeStyle: {
             backgroundColor: '#FF2D55',
             fontSize: 10,

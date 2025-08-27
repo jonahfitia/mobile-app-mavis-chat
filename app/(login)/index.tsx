@@ -9,8 +9,8 @@ import { Button, Text, TextInput, Title, useTheme } from 'react-native-paper';
 import { CONFIG } from './../../config';
 
 const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [email, setEmail] = useState<string>("haja@gmail.com");
+  const [password, setPassword] = useState<string>("haja");
   const [secureText, setSecureText] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

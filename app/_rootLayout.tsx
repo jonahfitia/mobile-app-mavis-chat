@@ -53,8 +53,6 @@ export default function RootLayout() {
           screenOptions={{ headerShown: false, drawerPosition: 'right' }}
           drawerContent={(props) => <DrawerContent {...props} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />}
         >
-          {/* Menu et ses enfants avec header */}
-          <Drawer.Screen name="(menu)" options={{ title: 'Menu' }} />
 
           {/* Tabs également enfant du menu layout, header reste */}
           <Drawer.Screen name="(tabs)" options={{ title: 'Home' }} />

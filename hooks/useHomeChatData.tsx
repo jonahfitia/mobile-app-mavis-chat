@@ -190,56 +190,57 @@ export default function useHomeChatData() {
     }, [partnerId, chatData]);
 
     // Long polling pour les mises à jour en temps réel
-    // useEffect(() => {
-    //     let isMounted = true;
-    //     const pollMessages = async () => {
-    //         try {
-    //             const response = await axios.post(`${CONFIG.SERVER_URL}/longpolling/poll`, {
-    //                 jsonrpc: '2.0',
-    //                 method: 'call',
-    //                 params: {
-    //                     channels: [`${CONFIG.DATABASE_NAME}/${userId}/mail.channel`],
-    //                     last: 0,
-    //                     options: {}
-    //                 },
-    //             }, {
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //             });
+    useEffect(() => {
+        let isMounted = true;
+        const pollMessages = async () => {
+            try {
+                const response = await axios.post(`${CONFIG.SERVER_URL}/longpolling/poll`, {
+                    jsonrpc: '2.0',
+                    method: 'call',
+                    params: {
+                        channels: [`${CONFIG.DATABASE_NAME}/${userId}/mail.channel`],
+                        last: 0,
+                        options: {}
+                    },
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
 
-    //             console.log('Polling response:', response.data.result?.length, 'new messages');
-    //             if (response.data.result?.length > 0) {
-    //                 for (const notification of response.data.result) {
-    //                     if (notification.message?.model === 'mail.channel') {
-    //                         const channelId = notification.message.res_id;
-    //                         const channel = chatData.find((c) => c.channelId === channelId);
-    //                         if (channel) {
-    //                             await updateChannelUnreadCount(channelId, channel.uuid);
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //             if (isMounted) {
-    //                 pollMessages();
-    //             }
-    //         } catch (error: any) {
-    //             console.error('Erreur polling:', error);
-    //             if (error.response?.status === 401 || error.response?.status === 403) {
-    //                 setError('Session expirée. Veuillez vous reconnecter.');
-    //                 router.replace('/login');
-    //             } else {
-    //                 setTimeout(() => {
-    //                     if (isMounted) pollMessages();
-    //                 }, 5000);
-    //             }
-    //         }
-    //     };
-    //     pollMessages();
+                console.log('Polling response:', response.data.result?.length, 'new messages');
+                if (response.data.result?.length > 0) {
+                    for (const notification of response.data.result) {
+                        if (notification.message?.model === 'mail.channel') {
+                            const channelId = notification.message.res_id;
+                            const channel = chatData.find((c) => c.channelId === channelId);
+                            if (channel) {
+                                await updateChannelUnreadCount(channelId, channel.uuid);
+                            }
+                        }
+                    }
+                }
+                if (isMounted) {
+                    pollMessages();
+                }
+            } catch (error: any) {
+                console.error('Erreur polling:', error);
+                if (error.response?.status === 401 || error.response?.status === 403) {
+                    setError('Session expirée. Veuillez vous reconnecter.');
+                    router.replace('/login');
+                } else {
+                    setTimeout(() => {
+                        if (isMounted) pollMessages();
+                    }, 5000);
+                }
+            }
+        };
+        pollMessages();
 
-    //     return () => {
-    //         isMounted = false;
-    //     };
+        return () => {
+            isMounted = false;
+        };
+    }, [chatData]);
     // }, [userId, sessionId, chatData, updateChannelUnreadCount]);
 
     const handleConversationPress = async (uuid: string, channelId: number, conversation_type?: string) => {

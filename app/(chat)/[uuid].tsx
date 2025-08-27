@@ -58,6 +58,44 @@ export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'] || Colors.light;
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      setIsLoading(true);
+      await fetchMessages();
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [uuid]);
+
+  useEffect(() => {
+    if (!isLoading && messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages, isLoading]);
+
+  useEffect(() => {
+    const updateTimezoneAndTime = () => {
+      const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (newTimezone !== userTimezone) {
+        setUserTimezone(newTimezone);
+        console.log('Mise à jour du fuseau horaire:', newTimezone);
+      }
+    };
+
+    updateTimezoneAndTime();
+    const interval = setInterval(updateTimezoneAndTime, 60000);
+    return () => clearInterval(interval);
+  }, [userTimezone]);
+
   const getPartnerId = async (): Promise<number | null> => {
     try {
       const userData = await AsyncStorage.getItem('user');
@@ -130,7 +168,7 @@ export default function ChatScreen() {
           text: msg.body ? msg.body : (msg.body || 'No message'),
           time: msg.date,
           isMine: msg.author_id[0] === partner,
-          attachments: msg.attachments_ids?.map((att) => ({
+          attachments: msg.attachments_ids?.map((att: { id: any; }) => ({
             ...att,
             url: `${CONFIG.SERVER_URL}/web/content/${att.id}?download=true`
           })) || []
@@ -141,44 +179,6 @@ export default function ChatScreen() {
       console.error('Erreur lors du chargement des messages:', err);
     }
   };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const load = async () => {
-      setIsLoading(true);
-      await fetchMessages();
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    };
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, [uuid]);
-
-  useEffect(() => {
-    if (!isLoading && messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages, isLoading]);
-
-  useEffect(() => {
-    const updateTimezoneAndTime = () => {
-      const newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (newTimezone !== userTimezone) {
-        setUserTimezone(newTimezone);
-        console.log('Mise à jour du fuseau horaire:', newTimezone);
-      }
-    };
-
-    updateTimezoneAndTime();
-    const interval = setInterval(updateTimezoneAndTime, 60000);
-    return () => clearInterval(interval);
-  }, [userTimezone]);
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -317,99 +317,101 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: theme.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 50}
-      >
-        <View style={{ flex: 1 }}>
-          <View style={[styles.header, { backgroundColor: theme.tint }]}>
-            <View style={styles.profileIcon}>
-              <Text style={styles.profileLetter}>{name?.charAt(0)}</Text>
-              <View style={styles.onlineDot} />
+    <View style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.background }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 60}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={[styles.header, { backgroundColor: theme.tint }]}>
+              <View style={styles.profileIcon}>
+                <Text style={styles.profileLetter}>{name?.charAt(0)}</Text>
+                <View style={styles.onlineDot} />
+              </View>
+              <Text style={[styles.headerTitle, { color: theme.background }]}>{name}</Text>
+              <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
+                <Ionicons name="close" size={24} color={theme.background} />
+              </TouchableOpacity>
             </View>
-            <Text style={[styles.headerTitle, { color: theme.background }]}>{name}</Text>
-            <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
-              <Ionicons name="close" size={24} color={theme.background} />
-            </TouchableOpacity>
-          </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-            </View>
-          )}
-          {!isLoading && (
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderItemWithDateSeparator}
-              contentContainerStyle={[styles.messageList, messages.length === 0 && { flex: 1 }]}
-              keyboardShouldPersistTaps="handled"
-              onScroll={(event) => {
-                const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-                const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
-                const isAtBottom =
-                  isContentSmallerThanScreen ||
-                  layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+              </View>
+            )}
+            {!isLoading && (
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderItemWithDateSeparator}
+                contentContainerStyle={[styles.messageList, messages.length === 0 && { flex: 1 }]}
+                keyboardShouldPersistTaps="handled"
+                onScroll={(event) => {
+                  const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+                  const isContentSmallerThanScreen = contentSize.height <= layoutMeasurement.height;
+                  const isAtBottom =
+                    isContentSmallerThanScreen ||
+                    layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
 
-                setShowScrollToEnd(!isAtBottom);
-              }}
-              scrollEventThrottle={100}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>Aucun message</Text>
-                </View>
-              }
-            />
-          )}
-          <View style={[styles.inputContainer, { backgroundColor: theme.tint }]}>
-            <TouchableOpacity onPress={() => console.log('Add media')}>
-              <Ionicons name="camera-outline" size={24} color="#fff" style={styles.inputIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => console.log('Voice input')}>
-              <Ionicons name="mic-outline" size={24} color="#fff" style={styles.inputIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => console.log('Add image')}>
-              <Ionicons name="image-outline" size={24} color="#fff" style={styles.inputIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => console.log('Add emoji')}>
-              <Ionicons name="happy-outline" size={24} color="#fff" style={styles.inputIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => console.log('Add more')}>
-              <Ionicons name="add-circle-outline" size={24} color="#fff" style={styles.inputIcon} />
-            </TouchableOpacity>
-            <TextInput
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Message..."
-              style={[styles.input]}
-              placeholderTextColor="#888"
-              multiline={true}
-            />
-            <TouchableOpacity onPress={sendMessage} disabled={!newMessage.trim()}>
-              <Ionicons
-                name="send"
-                size={24}
-                color={newMessage.trim() ? '#0095f6' : '#888'}
-                style={styles.inputIcon}
+                  setShowScrollToEnd(!isAtBottom);
+                }}
+                scrollEventThrottle={100}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Aucun message</Text>
+                  </View>
+                }
               />
-            </TouchableOpacity>
+            )}
+            <View style={[styles.inputContainer, { backgroundColor: theme.tint }]}>
+              <TouchableOpacity onPress={() => console.log('Add media')}>
+                <Ionicons name="camera-outline" size={24} color="#fff" style={styles.inputIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => console.log('Voice input')}>
+                <Ionicons name="mic-outline" size={24} color="#fff" style={styles.inputIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => console.log('Add image')}>
+                <Ionicons name="image-outline" size={24} color="#fff" style={styles.inputIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => console.log('Add emoji')}>
+                <Ionicons name="happy-outline" size={24} color="#fff" style={styles.inputIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => console.log('Add more')}>
+                <Ionicons name="add-circle-outline" size={24} color="#fff" style={styles.inputIcon} />
+              </TouchableOpacity>
+              <TextInput
+                value={newMessage}
+                onChangeText={setNewMessage}
+                placeholder="Message..."
+                style={[styles.input]}
+                placeholderTextColor="#888"
+                multiline={true}
+              />
+              <TouchableOpacity onPress={sendMessage} disabled={!newMessage.trim()}>
+                <Ionicons
+                  name="send"
+                  size={24}
+                  color={newMessage.trim() ? '#0095f6' : '#888'}
+                  style={styles.inputIcon}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-        {showScrollToEnd && (
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          >
-            <Ionicons name="arrow-down" size={28} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          {showScrollToEnd && (
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            >
+              <Ionicons name="arrow-down" size={28} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 
 }
@@ -421,8 +423,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 40 : 20,
     paddingHorizontal: 15,
     paddingBottom: 5,
+    marginTop: 25,
     backgroundColor: '#fff',
-    shadowColor: '#000',
+    shadowColor: '#d12020ff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -502,6 +505,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#ccc',
     minHeight: 50,
+    marginBottom: 35
   },
   input: {
     flex: 1,
@@ -510,7 +514,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginHorizontal: 5,
     textAlignVertical: 'center',
-    height: 15,
     textAlign: 'left',
     paddingVertical: 5,
   },
