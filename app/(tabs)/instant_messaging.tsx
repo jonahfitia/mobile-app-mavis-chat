@@ -1,35 +1,58 @@
 // app/(tabs)/instant_messaging.tsx
 import { ConversationList } from '@/components/ConversationList';
+import ConversationDrawer from '@/components/drawer/ConversationDrawer';
 import useHomeChatData from '@/hooks/useHomeChatData';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 export default function MessagingScreen() {
   const { isLoading, chatData, error, refetch, handleConversationPress } = useHomeChatData();
+  const [refreshing, setRefreshing] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Rafraîchir les conversations lorsque l’écran est affiché
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch])
   );
 
+  const toggleDrawer = () => {
+    setIsDrawerOpen(!isDrawerOpen);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
-        </View>
-      )}
-      {!isLoading && (
-        <ConversationList
-          chatData={chatData}
-          error={error}
-          filterType="chat"
-          onConversationPress={handleConversationPress}
-        />
-      )}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#007AFF" />
+          </View>
+        )}
+        {!isLoading && (
+          <ConversationList
+            chatData={chatData}
+            error={error}
+            filterType="chat"
+            onConversationPress={handleConversationPress}
+          />
+        )}
+      </ScrollView>
+      <ConversationDrawer isOpen={isDrawerOpen} onClose={toggleDrawer} conversations={chatData} />
     </View>
   );
 }
