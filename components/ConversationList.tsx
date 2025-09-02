@@ -23,6 +23,8 @@ export function ConversationList({ chatData, error, filterType, onConversationPr
       <FlatList
         data={filteredData}
         keyExtractor={item => item.uuid}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => {

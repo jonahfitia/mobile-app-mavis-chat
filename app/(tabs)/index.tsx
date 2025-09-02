@@ -8,12 +8,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import useHomeChatData from '@/hooks/useHomeChatData';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const { isLoading, chatData, error, refetch, handleConversationPress } = useHomeChatData();
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // État pour contrôler le drawer
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -23,6 +24,15 @@ export default function HomeScreen() {
 
   const toggleDrawer = () => {
     setIsDrawerOpen(!isDrawerOpen);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -37,23 +47,33 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>New conversation</Text>
         </Pressable>
       </ThemedView>
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
-        </View>
-      )}
-      {!isLoading && (
-        <ConversationList
-          chatData={chatData}
-          error={error}
-          filterType={null}
-          onConversationPress={handleConversationPress}
-        />
-      )}
+
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#007AFF" />
+          </View>
+        )}
+        {!isLoading && (
+          <ConversationList
+            chatData={chatData}
+            error={error}
+            filterType={null}
+            onConversationPress={handleConversationPress}
+          />
+        )}
+      </ScrollView>
+
       <ConversationDrawer isOpen={isDrawerOpen} onClose={toggleDrawer} conversations={chatData} />
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   fixedHeader: {

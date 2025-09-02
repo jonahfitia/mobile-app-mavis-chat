@@ -190,57 +190,57 @@ export default function useHomeChatData() {
     }, [partnerId, chatData]);
 
     // Long polling pour les mises à jour en temps réel
-    useEffect(() => {
-        let isMounted = true;
-        const pollMessages = async () => {
-            try {
-                const response = await axios.post(`${CONFIG.SERVER_URL}/longpolling/poll`, {
-                    jsonrpc: '2.0',
-                    method: 'call',
-                    params: {
-                        channels: [`${CONFIG.DATABASE_NAME}/${userId}/mail.channel`],
-                        last: 0,
-                        options: {}
-                    },
-                }, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+    // useEffect(() => {
+    //     let isMounted = true;
+    //     const pollMessages = async () => {
+    //         try {
+    //             const response = await axios.post(`${CONFIG.SERVER_URL}/longpolling/poll`, {
+    //                 jsonrpc: '2.0',
+    //                 method: 'call',
+    //                 params: {
+    //                     channels: [`${CONFIG.DATABASE_NAME}/${userId}/mail.channel`],
+    //                     last: 0,
+    //                     options: {}
+    //                 },
+    //             }, {
+    //                 headers: {
+    //                     'Content-Type': 'application/json',
+    //                 },
+    //             });
 
-                console.log('Polling response:', response.data.result?.length, 'new messages');
-                if (response.data.result?.length > 0) {
-                    for (const notification of response.data.result) {
-                        if (notification.message?.model === 'mail.channel') {
-                            const channelId = notification.message.res_id;
-                            const channel = chatData.find((c) => c.channelId === channelId);
-                            if (channel) {
-                                await updateChannelUnreadCount(channelId, channel.uuid);
-                            }
-                        }
-                    }
-                }
-                if (isMounted) {
-                    pollMessages();
-                }
-            } catch (error: any) {
-                console.error('Erreur polling:', error);
-                if (error.response?.status === 401 || error.response?.status === 403) {
-                    setError('Session expirée. Veuillez vous reconnecter.');
-                    router.replace('/login');
-                } else {
-                    setTimeout(() => {
-                        if (isMounted) pollMessages();
-                    }, 5000);
-                }
-            }
-        };
-        pollMessages();
+    //             console.log('Polling response:', response.data.result?.length, 'new messages');
+    //             if (response.data.result?.length > 0) {
+    //                 for (const notification of response.data.result) {
+    //                     if (notification.message?.model === 'mail.channel') {
+    //                         const channelId = notification.message.res_id;
+    //                         const channel = chatData.find((c) => c.channelId === channelId);
+    //                         if (channel) {
+    //                             await updateChannelUnreadCount(channelId, channel.uuid);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //             if (isMounted) {
+    //                 pollMessages();
+    //             }
+    //         } catch (error: any) {
+    //             console.error('Erreur polling:', error);
+    //             if (error.response?.status === 401 || error.response?.status === 403) {
+    //                 setError('Session expirée. Veuillez vous reconnecter.');
+    //                 router.replace('/login');
+    //             } else {
+    //                 setTimeout(() => {
+    //                     if (isMounted) pollMessages();
+    //                 }, 5000);
+    //             }
+    //         }
+    //     };
+    //     pollMessages();
 
-        return () => {
-            isMounted = false;
-        };
-    }, [chatData]);
+    //     return () => {
+    //         isMounted = false;
+    //     };
+    // }, [chatData]);
     // }, [userId, sessionId, chatData, updateChannelUnreadCount]);
 
     const handleConversationPress = async (uuid: string, channelId: number, conversation_type?: string) => {
@@ -260,9 +260,9 @@ export default function useHomeChatData() {
             );
             const instance_type = historyResponse.data.result[0];
             const lastMessageId = instance_type.id;
-            console.log("------------------ UUID : ", uuid,
-                "------------------- Conversation _type ", conversation_type,
-                "--------------- CHANNEL ID : ", channelId);
+            // console.log("------------------ UUID : ", uuid,
+            //     "------------------- Conversation _type ", conversation_type,
+            //     "--------------- CHANNEL ID : ", channelId);
             if (lastMessageId) {
                 await axios.post(
                     `${CONFIG.SERVER_URL}/mail/channel/seen`,
@@ -284,11 +284,13 @@ export default function useHomeChatData() {
                 await updateChannelUnreadCount(channelId, uuid);
             }
 
+            console.log('------------- uuid', uuid, 'channelId', channelId, 'conversation_type', conversation_type, 'email',
+                chatData.find(item => item.uuid === uuid)?.email, 'userId', userId, 'session_id', sessionId)
             router.push({
                 pathname: '/(chat)/[uuid]',
                 params: {
                     uuid,
-                    channelId: channelId?.toString(),
+                    channel_id: channelId?.toString(),
                     conversation_type: chatData.find(item => item.uuid === uuid)?.conversation_type,
                     email: chatData.find(item => item.uuid === uuid)?.email || '',
                     userId: userId?.toString() || '',
@@ -330,7 +332,11 @@ export default function useHomeChatData() {
                     {
                         jsonrpc: '2.0',
                         method: 'call',
-                        params: { channel_id: channelId, last_message_id: lastMessageId },
+                        params: {
+                            channel_id: conversation_type === 'notification' ? null : channelId,
+                            last_message_id: lastMessageId,
+                            uuid: conversation_type === 'notification' ? uuid : null
+                        },
                     },
                     {
                         headers: {
@@ -340,11 +346,14 @@ export default function useHomeChatData() {
                 );
                 await updateChannelUnreadCount(channelId, uuid);
             }
+
+            console.log('------------- uuid', uuid, 'channelId', channelId, 'conversation_type', conversation_type, 'email',
+                chatData.find(item => item.uuid === uuid)?.email, 'userId', userId, 'session_id', sessionId)
             router.push({
                 pathname: '/(chat)/[uuid]',
                 params: {
                     uuid,
-                    channelId: channelId.toString(),
+                    channel_id: channelId.toString(),
                     conversation_type: conversation_type,
                     email: email,
                     userId: userId?.toString() || '',
