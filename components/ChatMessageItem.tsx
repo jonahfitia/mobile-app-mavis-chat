@@ -25,52 +25,138 @@ type ChatMessageItemProps = {
   userTimezone: string;
 };
 
-export const ChatMessageItem = React.memo(({ message, previousMessage, userTimezone }: ChatMessageItemProps) => {
-  const currentDate = dayjs.utc(message.time).tz(userTimezone);
-  const previousDate = previousMessage ? dayjs.utc(previousMessage.time).tz(userTimezone) : null;
-  const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
-  const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
+export const ChatMessageItem = React.memo(
+  ({ message, previousMessage, userTimezone }: ChatMessageItemProps) => {
+    const currentDate = dayjs.utc(message.time).tz(userTimezone);
+    const previousDate = previousMessage ? dayjs.utc(previousMessage.time).tz(userTimezone) : null;
+    const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
+    const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
 
-  const today = dayjs.tz(new Date(), userTimezone);
-  const isToday = currentDate.isSame(today, 'day');
+    const today = dayjs.tz(new Date(), userTimezone);
+    const isToday = currentDate.isSame(today, 'day');
 
-  // console.log(" --------------- ");
-  // console.log("previousMessage --------------- ", previousMessage);
-  // console.log("message ------------ ", message);
-  // console.log(" --------------- ");
-
-  return (
-    <>
-      {showDate && (
-        <View style={styles.dateSeparator}>
-          <View style={styles.line} />
-          <Text style={styles.dateSeparatorText}>{isToday ? "Aujourd'hui" : currentDate.format('dddd DD MMMM YYYY')}</Text>
-          <View style={styles.line} />
-        </View>
-      )}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        <View style={[{ flex: 1 }, !message.isMine && { marginLeft: 5 }]}>
-          {showTime && (
-            <Text style={[styles.messageTime, message.isMine ? styles.messageTimeRight : styles.messageTimeLeft]}>
-              {currentDate.format('HH:mm')}
+    return (
+      <>
+        {showDate && (
+          <View style={styles.dateSeparator}>
+            <View style={styles.line} />
+            <Text style={styles.dateSeparatorText}>
+              {isToday ? "Aujourd'hui" : currentDate.format('dddd DD MMMM YYYY')}
             </Text>
-          )}
-          <View style={[styles.messageContainer, message.isMine ? styles.myMessage : styles.otherMessage]}>
-            {message.text && <HTMLView value={message.text} stylesheet={styles} />}
-            {message.attachments_ids?.filter(att => att.mimetype?.startsWith("image/")).map((att, idx) => (
-              <Image key={idx} source={{ uri: att.url?.replace("?download=true", "") }} style={{ width: 200, height: 200, borderRadius: 8, marginTop: 5 }} resizeMode="cover" />
-            ))}
-            {message.attachments_ids?.filter(att => att.mimetype?.startsWith("application/")).map((att, idx) => (
-              <TouchableOpacity key={idx} onPress={() => Linking.openURL(att.url)} style={{ marginTop: 5, flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ color: "#007bff" }}>📎 {att.name}</Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.line} />
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          <View style={[{ flex: 1 }, !message.isMine && { marginLeft: 5 }]}>
+            {showTime && (
+              <Text
+                style={[
+                  styles.messageTime,
+                  message.isMine ? styles.messageTimeRight : styles.messageTimeLeft,
+                ]}
+              >
+                {currentDate.format('HH:mm')}
+              </Text>
+            )}
+            <View
+              style={[
+                styles.messageContainer,
+                message.isMine ? styles.myMessage : styles.otherMessage,
+              ]}
+            >
+              {message.text && <HTMLView value={message.text} stylesheet={styles} />}
+              {message.attachments_ids
+                ?.filter((att) => att.mimetype?.startsWith('image/'))
+                .map((att, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: att.url?.replace('?download=true', '') }}
+                    style={{
+                      width: 200,
+                      height: 200,
+                      borderRadius: 8,
+                      marginTop: 5,
+                    }}
+                    resizeMode="cover"
+                  />
+                ))}
+              {message.attachments_ids
+                ?.filter((att) => att.mimetype?.startsWith('application/'))
+                .map((att, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => Linking.openURL(att.url)}
+                    style={{ marginTop: 5, flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#007bff' }}>📎 {att.name}</Text>
+                  </TouchableOpacity>
+                ))}
+            </View>
           </View>
         </View>
-      </View>
-    </>
-  );
-});
+      </>
+    );
+  },
+
+  // 👇 comparaison pour éviter re-render inutile
+  (prevProps, nextProps) => {
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.text === nextProps.message.text &&
+      prevProps.message.time === nextProps.message.time &&
+      prevProps.message.isMine === nextProps.message.isMine &&
+      prevProps.previousMessage?.id === nextProps.previousMessage?.id &&
+      prevProps.userTimezone === nextProps.userTimezone
+    );
+  }
+);
+
+// export const ChatMessageItem = React.memo(({ message, previousMessage, userTimezone }: ChatMessageItemProps) => {
+//   const currentDate = dayjs.utc(message.time).tz(userTimezone);
+//   const previousDate = previousMessage ? dayjs.utc(previousMessage.time).tz(userTimezone) : null;
+//   const showDate = !previousDate || !previousDate.isSame(currentDate, 'day');
+//   const showTime = !previousDate || currentDate.format('HH:mm') !== previousDate.format('HH:mm');
+
+//   const today = dayjs.tz(new Date(), userTimezone);
+//   const isToday = currentDate.isSame(today, 'day');
+
+//   // console.log(" --------------- ");
+//   // console.log("previousMessage --------------- ", previousMessage);
+//   // console.log("message ------------ ", message);
+//   // console.log(" --------------- ");
+
+//   return (
+//     <>
+//       {showDate && (
+//         <View style={styles.dateSeparator}>
+//           <View style={styles.line} />
+//           <Text style={styles.dateSeparatorText}>{isToday ? "Aujourd'hui" : currentDate.format('dddd DD MMMM YYYY')}</Text>
+//           <View style={styles.line} />
+//         </View>
+//       )}
+//       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+//         <View style={[{ flex: 1 }, !message.isMine && { marginLeft: 5 }]}>
+//           {showTime && (
+//             <Text style={[styles.messageTime, message.isMine ? styles.messageTimeRight : styles.messageTimeLeft]}>
+//               {currentDate.format('HH:mm')}
+//             </Text>
+//           )}
+//           <View style={[styles.messageContainer, message.isMine ? styles.myMessage : styles.otherMessage]}>
+//             {message.text && <HTMLView value={message.text} stylesheet={styles} />}
+//             {message.attachments_ids?.filter(att => att.mimetype?.startsWith("image/")).map((att, idx) => (
+//               <Image key={idx} source={{ uri: att.url?.replace("?download=true", "") }} style={{ width: 200, height: 200, borderRadius: 8, marginTop: 5 }} resizeMode="cover" />
+//             ))}
+//             {message.attachments_ids?.filter(att => att.mimetype?.startsWith("application/")).map((att, idx) => (
+//               <TouchableOpacity key={idx} onPress={() => Linking.openURL(att.url)} style={{ marginTop: 5, flexDirection: "row", alignItems: "center" }}>
+//                 <Text style={{ color: "#007bff" }}>📎 {att.name}</Text>
+//               </TouchableOpacity>
+//             ))}
+//           </View>
+//         </View>
+//       </View>
+//     </>
+//   );
+// });
 
 const styles = StyleSheet.create({
   myMessage: { backgroundColor: '#dcf8c6', alignSelf: 'flex-end' },

@@ -1,4 +1,3 @@
-import { CONFIG } from '@/config';
 import messaging from '@react-native-firebase/messaging';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect } from 'react';

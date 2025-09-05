@@ -1,7 +1,7 @@
 import { Attachment } from "./attachment";
 
 export interface ChatMessage {
-    id: number;
+    id: number | string;
     clientId?: string;
     text: string;
     time: string;

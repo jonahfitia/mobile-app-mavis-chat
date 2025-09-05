@@ -8,7 +8,6 @@ import { Message } from '@/types/chat/message';
 import { UserInfo } from '@/types/chat/userInfo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -64,8 +63,6 @@ export default function ChatScreen() {
   const theme = Colors[colorScheme ?? 'light'] || Colors.light;
   const seenMessageIdsRef = useRef<Set<number | string>>(new Set());
 
-  const isFocused = useIsFocused();
-
   // ---------- Détecter fuseau horaire ----------
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -73,12 +70,18 @@ export default function ChatScreen() {
     console.log("Fuseau horaire détecté :", tz);
   }, []);
 
+  // ---------- Charger historique ----------
   useEffect(() => {
-    lastIdRef.current = 0;       // reset curseur
-    pollingRef.current = false;  // reset polling
-  }, [channel_id]);
-
-  useEffect(() => {
+    // console.log("------------------------");
+    // console.log("channel_id ", channel_id);
+    // console.log("conversation_type ", conversation_type);
+    // console.log("email ", email);
+    // console.log("name ", name);
+    // console.log("uuid ", uuid);
+    // console.log("userId ", userId);
+    // console.log("session_id ", session_id);
+    // console.log("partnerId ", partnerId);
+    // console.log("------------------------");
     if (!uuid) return;
     let isMounted = true;
     const loadHistory = async () => {
@@ -100,7 +103,7 @@ export default function ChatScreen() {
     }
   }, [messages, isLoading]);
 
-  // ---------- Fetch messages ----------
+  // ---------- Fetch messages (NE PAS modifier lastIdRef ici) ----------
   const fetchMessages = async () => {
     try {
       const partner = await getPartnerId();
@@ -135,10 +138,10 @@ export default function ChatScreen() {
         }));
 
       setMessages(formattedMessages);
-      formattedMessages.forEach(msg => seenMessageIdsRef.current.add(msg.id));
 
       // DEBUG: confirm loaded messages (ne pas confondre avec "last" du bus)
       console.log("[fetchMessages] loaded ----------- ", formattedMessages.length, "messages (message ids).");
+      // IMPORTANT : on NE change PAS lastIdRef ici, lastIdRef est le curseur notifications (bus id).
     } catch (err) {
       setError('Failed to load messages');
       console.error('Erreur lors du chargement des messages:', err);
@@ -178,36 +181,13 @@ export default function ChatScreen() {
     return [];
   }
 
-  // -- à mettre hors useEffect, pour réutiliser ailleurs
-  async function markChannelSeen(channelId: number, lastMessageId: number) {
-    try {
-      await axios.post(
-        `${CONFIG.SERVER_URL}/mail/channel/seen`,
-        {
-          jsonrpc: '2.0',
-          method: 'call',
-          params: {
-            channel_id: conversation_type === 'notification' ? null : channelId,
-            last_message_id: lastMessageId,
-            uuid: conversation_type === 'notification' ? uuid : null
-          },
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      // await updateChannelUnreadCount(channelId, uuid);
-      console.log("[seen] OK:", channelId, lastMessageId);
-    } catch (e) {
-      console.error("[seen] error:", e);
-    }
-  }
-
-  // // ---------- Long-polling useEffect  ----------
+  // // ---------- Long-polling useEffect (corrigé) ----------
   useEffect(() => {
-    if (!channel_id || !partnerId) return;
+    if (!channel_id) return;
+    if (!partnerId) {
+      console.log('[longpoll] waiting partnerId...');
+      return;
+    }
 
     let active = true;
 
@@ -224,8 +204,8 @@ export default function ChatScreen() {
         // Ex: "mail.channel_8" ou (si nécessaire) "mavis_prod/6/mail.channel" — la plupart fonctionnent avec mail.channel_<id>
         const channelsPayload = [`mail.channel_${channel_id}`];
 
-        // console.log("polling ref ---------------------- :", pollingRef.current);
-        // console.log("[longpoll] polling on channels ---------------------- :", channelsPayload, " lastId:", lastIdRef.current);
+        console.log("polling ref ---------------------- :", pollingRef.current);
+        console.log("[longpoll] polling on channels ---------------------- :", channelsPayload, " lastId:", lastIdRef.current);
         const response = await axios.post(
           `${CONFIG.SERVER_URL}/longpolling/poll`,
           {
@@ -245,7 +225,7 @@ export default function ChatScreen() {
             timeout: 65000,
           }
         );
-        // console.log('[longpoll] response.data:', response.data);
+        console.log('[longpoll] response.data:', response.data);
 
         // si serveur renvoie un curseur global 'id' (optionnel), le prendre
         if (response.data && typeof response.data.id === 'number') {
@@ -253,8 +233,8 @@ export default function ChatScreen() {
         }
 
         const result = response.data.result;
-        console.log('[-longpoll-] notifications ----------------- ', result);
         if (Array.isArray(result) && result.length > 0) {
+          console.log('[longpoll] notifications count=', result.length);
           setMessages(prev => {
             const next = [...prev];
 
@@ -266,8 +246,6 @@ export default function ChatScreen() {
               const payload = notif?.message ?? (Array.isArray(notif) ? notif[2] : (notif.payload || notif));
 
               console.log(" p l a y l o a d ------------ ", payload);
-              console.log(" n o t i f ------------------ ", notif);
-
               // notification id (cursor) — mettre à jour lastIdRef
               if (typeof notif.id === 'number') {
                 lastIdRef.current = Math.max(lastIdRef.current || 0, notif.id);
@@ -287,41 +265,24 @@ export default function ChatScreen() {
 
               // payload peut avoir message.id (id du message) ou payload.id
               const messageId = payload.id ?? payload.message_id ?? null;
-              console.log("CHANNEL ID ", channel_id, " +++++++++++ MESSAGE ID : ", messageId)
               if (!messageId) {
                 console.log('[longpoll] payload missing message id, skip', payload);
                 continue;
               }
 
-              // 🚫 si on a déjà cet id dans la ref OU dans la liste, on saute
-              const alreadyInList =
-                seenMessageIdsRef.current.has(messageId) ||
-                next.some(m => m.id === messageId);
-
-              if (alreadyInList) continue;
-
               // normaliser les attachments
               const attachments = normalizeAttachments(payload.attachment_ids ?? payload.attachment_ids);
-              // est-ce que c’est moi l’auteur ?
-              const is_mine_temp = Array.isArray(payload.author_id) ? payload.author_id[0] === partnerId : false
-
-              if (!messageId || seenMessageIdsRef.current.has(messageId)) continue;
 
               if (payload.channel_ids?.includes(Number(channel_id)) || payload.channel_id === Number(channel_id)) {
                 next.push({
                   id: messageId,
                   text: (payload.body ? String(payload.body).replace(/<[^>]+>/g, "") : 'No message'),
                   time: payload.date || new Date().toISOString(),
-                  isMine: is_mine_temp,
+                  isMine: Array.isArray(payload.author_id) ? payload.author_id[0] === partnerId : false,
                   attachments_ids: attachments,
                 });
-                seenMessageIdsRef.current.add(messageId);
-
-                // 🔥 marquer vu si écran actif
-                if (isFocused) {
-                  markChannelSeen(Number(channel_id), messageId);
-                }
               }
+
             }
 
             return next;
@@ -339,12 +300,8 @@ export default function ChatScreen() {
         if (active) poll(); // relancer la boucle
       }
     };
-
     poll();
-    return () => {
-      active = false;
-      pollingRef.current = false; // reset polling
-    };
+    return () => { active = false; };
   }, [channel_id, partnerId]);
 
   // ---------- Send message ----------
@@ -356,15 +313,19 @@ export default function ChatScreen() {
       const user: UserInfo = JSON.parse(userData);
       if (!uuid) { setError('UUID is missing'); return; }
 
+      const newMsg: ChatMessage = { id: Date.now(), text: newMessage, time: new Date().toISOString(), isMine: true, attachments_ids: [] };
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
 
-      setNewMessage('');
-      Keyboard.dismiss();
-      // Envoi réel au serveur
       const res = await axios.post(`${CONFIG.SERVER_URL}/mail/chat_post`,
         { jsonrpc: '2.0', method: 'call', params: { uuid, message_content: newMessage } },
         { headers: { 'Content-Type': 'application/json' }, withCredentials: true }
       );
+
+      await fetchMessages();
+      // setMessages(prev => [...prev, newMsg]);
+      setNewMessage('');
+      const result_id = res.data.result;
+      Keyboard.dismiss();
     } catch (err) {
       setError('Failed to send message');
       console.error('Erreur lors de l\'envoi du message:', err);
